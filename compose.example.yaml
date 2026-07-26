@@ -1,0 +1,29 @@
+services:
+  caldav-mcp:
+    image: ghcr.io/lukegskw/caldav-mcp:latest
+    restart: unless-stopped
+    read_only: true
+    user: "${CALDAV_MCP_UID_GID:-10001:10001}"
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    environment:
+      CALDAV_PROVIDER: icloud
+      CALDAV_USERNAME: ${CALDAV_USERNAME:?Set CALDAV_USERNAME}
+      CALDAV_PASSWORD: ${CALDAV_PASSWORD:?Set CALDAV_PASSWORD}
+      CALDAV_MCP_TRANSPORT: streamable-http
+      CALDAV_MCP_HOST: 0.0.0.0
+      CALDAV_MCP_PORT: 8100
+    ports:
+      - "${CALDAV_MCP_PUBLISHED_PORT:-8100}:8100"
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - const net=require('node:net');const socket=net.createConnection({host:'127.0.0.1',port:8100},()=>{socket.end()});socket.setTimeout(2000,()=>{socket.destroy();process.exit(1)});socket.on('error',()=>process.exit(1))
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
