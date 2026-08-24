@@ -315,6 +315,77 @@ For clients that launch local `stdio` servers, configure the command to run
 `node /absolute/path/to/caldav-mcp/dist/main.js` with the required environment
 variables.
 
+### Claude Desktop (Docker, stdio)
+
+Claude Desktop launches local `stdio` servers as subprocesses. Running the published
+container this way keeps the app-specific password on the client machine and opens no
+network port, which matches the transport guidance in [Limitations](#limitations).
+
+Add the server to `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "icloud-calendar": {
+      "command": "/absolute/path/to/docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "--env-file",
+        "/absolute/path/to/caldav-mcp.env",
+        "-e",
+        "CALDAV_PROVIDER=icloud",
+        "-e",
+        "CALDAV_MCP_TRANSPORT=stdio",
+        "ghcr.io/lukegskw/caldav-mcp@sha256:<digest>"
+      ]
+    }
+  }
+}
+```
+
+`-i` is required. Without an attached stdin the client cannot speak MCP to the
+container. `--rm` removes the container once the client stops it.
+
+Supply credentials through `--env-file` rather than `-e`. Arguments passed to
+`docker run` are visible in the host process list; the contents of an env file are not.
+The file holds the variables described in [Configuration](#configuration):
+
+```
+CALDAV_USERNAME=user@example.com
+CALDAV_PASSWORD=xxxx-xxxx-xxxx-xxxx
+```
+
+Pin the image by digest instead of `latest`, so that restarting the client cannot
+silently start a different version:
+
+```
+docker pull ghcr.io/lukegskw/caldav-mcp:latest
+docker images --digests ghcr.io/lukegskw/caldav-mcp
+```
+
+Restart Claude Desktop completely after editing the configuration file.
+
+#### Windows
+
+Create and locate the configuration file through **Settings -> Developer -> Edit
+Config**. Do not assume a path. When Claude Desktop is installed from the Microsoft
+Store, Windows redirects `%APPDATA%\Claude` into the package container and the file
+lives at:
+
+```
+%LOCALAPPDATA%\Packages\Claude_<package-id>\LocalCache\Roaming\Claude\claude_desktop_config.json
+```
+
+In that case `dir %APPDATA%\Claude` reports nothing. Server logs are written next to the
+configuration file, in `logs\mcp-server-<server-name>.log`.
+
+Use the absolute path to `docker.exe`, because `PATH` inside the package container is
+not reliable. `where docker` prints it, typically
+`C:\Program Files\Docker\Docker\resources\bin\docker.exe`. Backslashes must be escaped
+in JSON.
+
 Configuration formats differ between MCP clients. Consult the client's documentation
 for its exact schema and reload or restart it after changing the server definition.
 
