@@ -329,10 +329,15 @@ Add the server to `claude_desktop_config.json`:
     "icloud-calendar": {
       "command": "/absolute/path/to/docker",
       "args": [
-        "run", "-i", "--rm",
-        "--env-file", "/absolute/path/to/caldav-mcp.env",
-        "-e", "CALDAV_PROVIDER=icloud",
-        "-e", "CALDAV_MCP_TRANSPORT=stdio",
+        "run",
+        "-i",
+        "--rm",
+        "--env-file",
+        "/absolute/path/to/caldav-mcp.env",
+        "-e",
+        "CALDAV_PROVIDER=icloud",
+        "-e",
+        "CALDAV_MCP_TRANSPORT=stdio",
         "ghcr.io/lukegskw/caldav-mcp@sha256:<digest>"
       ]
     }
