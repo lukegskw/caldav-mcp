@@ -13,6 +13,7 @@ import {
   normalizeCalendarEvent,
   patchCalendarEvent,
 } from "../ical/index.js";
+import { MAX_EVENT_OCCURRENCES_PER_RESOURCE } from "../limits.js";
 import type { ProviderPolicy } from "../providers/index.js";
 import type {
   CreateEventInput,
@@ -219,29 +220,40 @@ export const createCalendarService = (
     return { deleted: true };
   };
 
+  const listEvents = async (
+    calendarId: string,
+    start: string,
+    end: string,
+    timezone?: string,
+  ): Promise<readonly EventResult[]> => {
+    const resources = await gateway.listResources(calendarId, { start, end });
+    return resources.flatMap((resource) =>
+      expandCalendarEvent(
+        resource.data,
+        start,
+        end,
+        MAX_EVENT_OCCURRENCES_PER_RESOURCE,
+        timezone,
+      ).map((event) => ({
+        ...event,
+        calendarId: resource.calendarId,
+        resourceId:
+          event.recurrenceId === null
+            ? resource.resourceId
+            : createResourceId(
+                readResourceId(resource.resourceId).calendarUrl,
+                resource.url,
+                event.recurrenceId,
+              ),
+        href: resource.url,
+        etag: resource.etag,
+      })),
+    );
+  };
+
   return {
     listCalendars: gateway.listCalendars,
-    listEvents: async (calendarId, start, end, timezone) => {
-      const resources = await gateway.listResources(calendarId, { start, end });
-      return resources.flatMap((resource) =>
-        expandCalendarEvent(resource.data, start, end, 500, timezone).map(
-          (event) => ({
-            ...event,
-            calendarId: resource.calendarId,
-            resourceId:
-              event.recurrenceId === null
-                ? resource.resourceId
-                : createResourceId(
-                    readResourceId(resource.resourceId).calendarUrl,
-                    resource.url,
-                    event.recurrenceId,
-                  ),
-            href: resource.url,
-            etag: resource.etag,
-          }),
-        ),
-      );
-    },
+    listEvents,
     getEvent,
     findEvent,
     createEvent,

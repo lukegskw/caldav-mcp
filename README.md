@@ -67,6 +67,8 @@ opaque `calendar_id`, display name, description, timezone, and best-effort write
 
 Lists events in a semi-open interval and expands recurring occurrences. The maximum
 range is 366 days, the default page size is 100, and the maximum page size is 500.
+Results use a deterministic chronological order. Pagination cursors are opaque and
+do not represent a snapshot when events are modified during traversal.
 
 Example input:
 

@@ -1,0 +1,3 @@
+export const MAX_EVENT_PAGE_SIZE = 500;
+
+export const MAX_EVENT_OCCURRENCES_PER_RESOURCE = 500;

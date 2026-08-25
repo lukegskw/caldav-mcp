@@ -40,6 +40,40 @@ const secondEvent: EventResult = {
   summary: "Second",
 };
 
+const recurringEvent = (
+  resourceId: string,
+  recurrenceId: string,
+  dateTime: string,
+) => ({
+  ...firstEvent,
+  resourceId,
+  uid: "therapy-series",
+  summary: "Therapy",
+  start: {
+    date_time: dateTime,
+    timezone: "Europe/Berlin",
+  },
+  end: {
+    date_time: dateTime.replace("T03:00:00", "T03:30:00"),
+    timezone: "Europe/Berlin",
+  },
+  rrule: "FREQ=WEEKLY",
+  recurring: true,
+  recurrenceId,
+});
+
+const firstOccurrence = recurringEvent(
+  "resource-therapy-1",
+  "2026-09-13T03:00:00",
+  "2026-09-13T03:00:00+02:00",
+);
+
+const secondOccurrence = recurringEvent(
+  "resource-therapy-2",
+  "2026-09-20T03:00:00",
+  "2026-09-20T03:00:00+02:00",
+);
+
 const createService = (): CalendarService => ({
   listCalendars: () =>
     Promise.resolve([
@@ -135,6 +169,17 @@ describe("MCP server", () => {
     expect(first.events.map((event) => event.summary)).toEqual(["First"]);
     expect(first.events[0]?.href).toMatch(/^sha256:[a-f0-9]{16}$/);
     expect(first.next_cursor).not.toBeNull();
+    const decodedCursor: unknown = JSON.parse(
+      Buffer.from(first.next_cursor ?? "", "base64url").toString("utf8"),
+    );
+    expect(decodedCursor).toMatchObject({
+      version: 2,
+      lastKey: {
+        uid: "uid-1",
+        recurrenceId: null,
+        resourceId: "resource-1",
+      },
+    });
 
     const second = listEventsOutputSchema.parse(
       (
@@ -164,6 +209,172 @@ describe("MCP server", () => {
     expect(JSON.stringify(mismatched.content)).toContain(
       "cursor does not match this query",
     );
+  });
+
+  it("keeps every event exactly once when backend order changes between pages", async () => {
+    let calls = 0;
+    const base = createService();
+    const service: CalendarService = {
+      ...base,
+      listEvents: () => {
+        calls += 1;
+        return Promise.resolve(
+          calls % 2 === 1
+            ? [secondOccurrence, secondEvent, firstOccurrence, firstEvent]
+            : [firstOccurrence, firstEvent, secondOccurrence, secondEvent],
+        );
+      },
+    };
+    const { client } = await connect(service);
+    const arguments_ = {
+      calendar_id: "calendar-id",
+      start: "2026-09-01T00:00:00Z",
+      end: "2026-10-01T00:00:00Z",
+      limit: 2,
+    };
+    const first = listEventsOutputSchema.parse(
+      (
+        await client.callTool({
+          name: "list_events",
+          arguments: arguments_,
+        })
+      ).structuredContent,
+    );
+    const second = listEventsOutputSchema.parse(
+      (
+        await client.callTool({
+          name: "list_events",
+          arguments: {
+            ...arguments_,
+            ...(first.next_cursor === null
+              ? {}
+              : { cursor: first.next_cursor }),
+          },
+        })
+      ).structuredContent,
+    );
+    const paginated = [...first.events, ...second.events].map((event) => [
+      event.uid,
+      event.recurrence_id,
+    ]);
+
+    expect(paginated).toEqual([
+      ["uid-1", null],
+      ["uid-2", null],
+      ["therapy-series", "2026-09-13T03:00:00"],
+      ["therapy-series", "2026-09-20T03:00:00"],
+    ]);
+    expect(new Set(paginated.map((identity) => identity.join("/"))).size).toBe(
+      4,
+    );
+    expect(second.next_cursor).toBeNull();
+
+    const singlePage = listEventsOutputSchema.parse(
+      (
+        await client.callTool({
+          name: "list_events",
+          arguments: { ...arguments_, limit: 500 },
+        })
+      ).structuredContent,
+    );
+    expect(
+      singlePage.events.map((event) => [event.uid, event.recurrence_id]),
+    ).toEqual(paginated);
+  });
+
+  it("continues by lastKey when earlier events are inserted or removed", async () => {
+    const thirdEvent: EventResult = {
+      ...firstEvent,
+      resourceId: "resource-3",
+      uid: "uid-3",
+      summary: "Third",
+    };
+    const fourthEvent: EventResult = {
+      ...firstEvent,
+      resourceId: "resource-4",
+      uid: "uid-4",
+      summary: "Fourth",
+    };
+    const insertedBefore: EventResult = {
+      ...firstEvent,
+      resourceId: "resource-0",
+      uid: "uid-0",
+      summary: "Inserted before cursor",
+    };
+    let calls = 0;
+    const base = createService();
+    const service: CalendarService = {
+      ...base,
+      listEvents: () => {
+        calls += 1;
+        return Promise.resolve(
+          calls === 1
+            ? [fourthEvent, secondEvent, thirdEvent, firstEvent]
+            : [fourthEvent, insertedBefore, thirdEvent],
+        );
+      },
+    };
+    const { client } = await connect(service);
+    const arguments_ = {
+      calendar_id: "calendar-id",
+      start: "2026-09-01T00:00:00Z",
+      end: "2026-10-01T00:00:00Z",
+      limit: 2,
+    };
+    const first = listEventsOutputSchema.parse(
+      (await client.callTool({ name: "list_events", arguments: arguments_ }))
+        .structuredContent,
+    );
+    const second = listEventsOutputSchema.parse(
+      (
+        await client.callTool({
+          name: "list_events",
+          arguments: {
+            ...arguments_,
+            limit: 3,
+            ...(first.next_cursor === null
+              ? {}
+              : { cursor: first.next_cursor }),
+          },
+        })
+      ).structuredContent,
+    );
+
+    expect(first.events.map((event) => event.uid)).toEqual(["uid-1", "uid-2"]);
+    expect(second.events.map((event) => event.uid)).toEqual(["uid-3", "uid-4"]);
+    expect(second.next_cursor).toBeNull();
+  });
+
+  it("rejects malformed, incomplete, and legacy cursors", async () => {
+    const { client } = await connect(createService());
+    const legacyCursor = Buffer.from(
+      JSON.stringify({ version: 1, offset: 1, queryHash: "0".repeat(64) }),
+      "utf8",
+    ).toString("base64url");
+    const incompleteCursor = Buffer.from(
+      JSON.stringify({ version: 2, queryHash: "0".repeat(64) }),
+      "utf8",
+    ).toString("base64url");
+    const results = await Promise.all(
+      ["not-json", incompleteCursor, legacyCursor].map((cursor) =>
+        client.callTool({
+          name: "list_events",
+          arguments: {
+            calendar_id: "calendar-id",
+            start: "2026-09-01T00:00:00Z",
+            end: "2026-10-01T00:00:00Z",
+            cursor,
+          },
+        }),
+      ),
+    );
+
+    expect(results.every((result) => result.isError === true)).toBe(true);
+    expect(
+      results.every((result) =>
+        JSON.stringify(result.content).includes("pagination cursor is invalid"),
+      ),
+    ).toBe(true);
   });
 
   it("does not expose unexpected errors through MCP", async () => {

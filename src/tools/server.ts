@@ -3,7 +3,7 @@ import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 
 import { createAppError, isAppError } from "../errors.js";
 import type { CalendarService } from "../services/index.js";
-import { createCursor, readCursor } from "./cursor.js";
+import { paginateEvents } from "./cursor.js";
 import {
   createEventToolInputSchema,
   deleteEventInputSchema,
@@ -115,19 +115,16 @@ export const createMcpServer = (service: CalendarService): McpServer => {
     },
     (input) =>
       runTool(async () => {
-        const offset = readCursor(input);
         const events = await service.listEvents(
           input.calendar_id,
           input.start,
           input.end,
           input.timezone,
         );
-        const page = events.slice(offset, offset + input.limit);
-        const nextOffset = offset + page.length;
+        const page = paginateEvents(input, events);
         return {
-          events: page.map(serializeEvent),
-          next_cursor:
-            nextOffset < events.length ? createCursor(input, nextOffset) : null,
+          events: page.events.map(serializeEvent),
+          next_cursor: page.nextCursor,
         };
       }),
   );
