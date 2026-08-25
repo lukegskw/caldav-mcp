@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { MAX_EVENT_PAGE_SIZE } from "../limits.js";
 import {
   createEventInputSchema,
   eventPatchSchema,
@@ -61,7 +62,7 @@ export const listEventsInputSchema = z
       .string()
       .refine(isValidTimezone, "Invalid IANA timezone")
       .optional(),
-    limit: z.number().int().min(1).max(500).default(100),
+    limit: z.number().int().min(1).max(MAX_EVENT_PAGE_SIZE).default(100),
     cursor: z.string().min(1).optional(),
   })
   .strict()

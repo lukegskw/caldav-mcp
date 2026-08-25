@@ -1,6 +1,7 @@
 import ICAL from "ical.js";
 
 import { createAppError } from "../errors.js";
+import { MAX_EVENT_OCCURRENCES_PER_RESOURCE } from "../limits.js";
 import {
   isTimedTemporalValue,
   type NormalizedEvent,
@@ -67,7 +68,7 @@ export const expandCalendarEvent = (
   rawCalendar: string,
   rangeStart: string,
   rangeEnd: string,
-  maximumOccurrences = 500,
+  maximumOccurrences = MAX_EVENT_OCCURRENCES_PER_RESOURCE,
   fallbackTimezone?: string,
 ): readonly NormalizedEvent[] => {
   const calendar = parseCalendar(rawCalendar);

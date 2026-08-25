@@ -12,6 +12,10 @@ export {
   type AppConfig,
   type PublicAppConfig,
 } from "./config.js";
+export {
+  MAX_EVENT_OCCURRENCES_PER_RESOURCE,
+  MAX_EVENT_PAGE_SIZE,
+} from "./limits.js";
 export * from "./caldav/index.js";
 export * from "./ical/index.js";
 export * from "./providers/index.js";
