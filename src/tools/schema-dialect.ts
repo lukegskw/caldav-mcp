@@ -16,6 +16,9 @@ import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 
 type JsonRecord = Record<string, unknown>;
 
+const isJsonRecord = (value: unknown): value is JsonRecord =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
 const stripDialect = (value: unknown): void => {
   if (Array.isArray(value)) {
     for (const entry of value) {
@@ -23,32 +26,33 @@ const stripDialect = (value: unknown): void => {
     }
     return;
   }
-  if (value === null || typeof value !== "object") {
+  if (!isJsonRecord(value)) {
     return;
   }
-  const record = value as JsonRecord;
-  delete record["$schema"];
-  for (const nested of Object.values(record)) {
+  delete value["$schema"];
+  for (const nested of Object.values(value)) {
     stripDialect(nested);
   }
 };
 
 export const stripSchemaDialect = (message: unknown): void => {
-  if (message === null || typeof message !== "object") {
+  if (!isJsonRecord(message)) {
     return;
   }
-  const result = (message as JsonRecord)["result"];
-  if (result === null || typeof result !== "object") {
+  const result = message["result"];
+  if (!isJsonRecord(result)) {
     return;
   }
-  const tools = (result as JsonRecord)["tools"];
+  const tools = result["tools"];
   if (!Array.isArray(tools)) {
     return;
   }
   for (const tool of tools) {
-    const record = tool as JsonRecord;
-    stripDialect(record["inputSchema"]);
-    stripDialect(record["outputSchema"]);
+    if (!isJsonRecord(tool)) {
+      continue;
+    }
+    stripDialect(tool["inputSchema"]);
+    stripDialect(tool["outputSchema"]);
   }
 };
 
