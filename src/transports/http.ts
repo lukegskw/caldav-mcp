@@ -1,8 +1,8 @@
 import type { Server as HttpServer } from "node:http";
 
-import { createMcpExpressApp } from "@modelcontextprotocol/sdk/server/express.js";
-import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
+import { createMcpExpressApp } from "@modelcontextprotocol/express";
+import { NodeStreamableHTTPServerTransport } from "@modelcontextprotocol/node";
+import type { Transport } from "@modelcontextprotocol/server";
 import type { Request, Response } from "express";
 
 import type { AppConfig } from "../config.js";
@@ -25,14 +25,14 @@ const internalErrorResponse = (response: Response): void => {
 };
 
 const closeRequestResources = (
-  transport: StreamableHTTPServerTransport,
+  transport: NodeStreamableHTTPServerTransport,
   server: ReturnType<typeof createMcpServer>,
 ): void => {
   void Promise.all([transport.close(), server.close()]).catch(() => undefined);
 };
 
 const bridgeTransport = (
-  transport: StreamableHTTPServerTransport,
+  transport: NodeStreamableHTTPServerTransport,
 ): Transport => {
   const bridge: Transport = {
     onclose: () => undefined,
@@ -65,7 +65,7 @@ export const startHttpTransport = async (
     response: Response,
   ): Promise<void> => {
     const server = createMcpServer(service);
-    const transport = new StreamableHTTPServerTransport();
+    const transport = new NodeStreamableHTTPServerTransport();
     try {
       await server.connect(bridgeTransport(transport));
       const body: unknown = request.body;

@@ -48,7 +48,7 @@ export default defineConfig([
         {
           allow: [
             "**/index.js",
-            "@modelcontextprotocol/sdk/**",
+            "@modelcontextprotocol/server/stdio",
             "node:**",
             "zod/**",
           ],
