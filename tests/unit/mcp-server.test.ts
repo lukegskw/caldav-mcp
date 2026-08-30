@@ -1,5 +1,4 @@
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+import { Client, InMemoryTransport } from "@modelcontextprotocol/client";
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
@@ -120,7 +119,7 @@ afterEach(async () => {
 });
 
 describe("MCP server", () => {
-  it("publishes all six tools with their risk annotations", async () => {
+  it("publishes all six tools with risk annotations and 2020-12 schemas", async () => {
     const { client } = await connect(createService());
     const tools = await client.listTools();
 
@@ -147,6 +146,15 @@ describe("MCP server", () => {
     expect(tools.tools.every((tool) => tool.outputSchema !== undefined)).toBe(
       true,
     );
+    expect(
+      tools.tools.every(
+        (tool) =>
+          tool.inputSchema["$schema"] ===
+            "https://json-schema.org/draft/2020-12/schema" &&
+          tool.outputSchema?.["$schema"] ===
+            "https://json-schema.org/draft/2020-12/schema",
+      ),
+    ).toBe(true);
   });
 
   it("returns structured, paginated event results with a bound cursor", async () => {
