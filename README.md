@@ -415,7 +415,9 @@ pnpm test:integration
 pnpm build
 ```
 
-Finally, connect with an MCP client and confirm that all six tools are listed. Before a
+Finally, connect with an MCP client, confirm that all six tools are listed, and call
+`list_calendars`. A successful listing is not sufficient on its own: a client can accept
+the tool list and still reject every call (see [Limitations](#limitations)). Before a
 release, run the dedicated [iCloud manual validation](docs/icloud-manual-test.md) against
 a test calendar.
 
@@ -433,6 +435,15 @@ a test calendar.
 - Events may contain at most 20 alarms.
 - Attendee scheduling is outside the current scope.
 - Providers other than iCloud are not officially supported.
+- `@modelcontextprotocol/sdk` 1.x converts Zod schemas with a hardcoded JSON Schema
+  draft-07 target and exposes no override, so every published schema carries a draft-07
+  `$schema` annotation. Clients that validate tool schemas against 2020-12 only, including
+  Claude Desktop and Claude Code, then list all six tools but reject every call before it
+  reaches the server. The server works around this by removing the `$schema` annotation
+  from `tools/list` responses (`src/tools/schema-dialect.ts`). The schema bodies use only
+  dialect-agnostic keywords, so each client applies its own default dialect and validation
+  semantics are unchanged. The workaround can be removed once the SDK allows selecting the
+  output dialect.
 
 See [troubleshooting](docs/troubleshooting.md) for discovery, authentication, ETag, and
 Apple extension guidance. Review [SECURITY.md](SECURITY.md) before reporting a security

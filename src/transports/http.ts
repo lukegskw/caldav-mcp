@@ -8,6 +8,7 @@ import type { Request, Response } from "express";
 import type { AppConfig } from "../config.js";
 import type { CalendarService } from "../services/index.js";
 import { createMcpServer } from "../tools/index.js";
+import { stripSchemaDialect } from "../tools/schema-dialect.js";
 
 export type RunningHttpTransport = {
   readonly close: () => Promise<void>;
@@ -40,13 +41,15 @@ const bridgeTransport = (
     onmessage: () => undefined,
     start: () => transport.start(),
     close: () => transport.close(),
-    send: (message, options) =>
-      transport.send(
+    send: (message, options) => {
+      stripSchemaDialect(message);
+      return transport.send(
         message,
         options?.relatedRequestId === undefined
           ? undefined
           : { relatedRequestId: options.relatedRequestId },
-      ),
+      );
+    },
   };
   transport.onclose = () => bridge.onclose?.();
   transport.onerror = (error) => bridge.onerror?.(error);
