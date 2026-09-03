@@ -1,0 +1,44 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.lukegskw/caldav-mcp",
+  "title": "CalDAV MCP Server",
+  "description": "A TypeScript MCP server for iCloud Calendar with native multi-VALARM support.",
+  "version": "0.1.0",
+  "repository": {
+    "url": "https://github.com/lukegskw/caldav-mcp",
+    "source": "github"
+  },
+  "packages": [
+    {
+      "registryType": "oci",
+      "identifier": "ghcr.io/lukegskw/caldav-mcp:latest",
+      "version": "0.1.0",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "description": "Your CalDAV server URL (e.g. https://caldav.icloud.com)",
+          "isRequired": true,
+          "format": "string",
+          "isSecret": false,
+          "name": "CALDAV_URL"
+        },
+        {
+          "description": "Your CalDAV username",
+          "isRequired": true,
+          "format": "string",
+          "isSecret": false,
+          "name": "CALDAV_USERNAME"
+        },
+        {
+          "description": "Your CalDAV password or app-specific password",
+          "isRequired": true,
+          "format": "string",
+          "isSecret": true,
+          "name": "CALDAV_PASSWORD"
+        }
+      ]
+    }
+  ]
+}

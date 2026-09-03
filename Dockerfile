@@ -17,6 +17,8 @@ FROM node:24-bookworm-slim
 
 ENV NODE_ENV=production
 
+LABEL io.modelcontextprotocol.server.name="io.github.lukegskw/caldav-mcp"
+
 RUN groupadd --gid 10001 caldav \
     && useradd --create-home --uid 10001 --gid 10001 caldav
 WORKDIR /app
