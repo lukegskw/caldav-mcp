@@ -32,14 +32,6 @@ jobs:
             echo "version=$VERSION" >> $GITHUB_OUTPUT
           fi
 
-      - name: Create and push Git Tag
-        if: steps.check_version.outputs.publish == 'true'
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag v${{ steps.check_version.outputs.version }}
-          git push origin v${{ steps.check_version.outputs.version }}
-
       - name: Set up pnpm
         if: steps.check_version.outputs.publish == 'true'
         uses: pnpm/action-setup@v4
@@ -77,8 +69,19 @@ jobs:
       - name: Wait for NPM cache propagation
         if: steps.check_version.outputs.publish == 'true'
         run: |
-          echo "Waiting 60 seconds for NPM registry to update its edge caches..."
-          sleep 60
+          echo "Waiting for NPM registry to update its edge caches..."
+          MAX_RETRIES=20
+          RETRY_INTERVAL=15
+          for i in $(seq 1 $MAX_RETRIES); do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://registry.npmjs.org/@lukegskw/caldav-mcp/${{ steps.check_version.outputs.version }})
+            if [ "$STATUS" -eq 200 ]; then
+              echo "NPM package is now available!"
+              exit 0
+            fi
+            echo "Still waiting... (Attempt $i of $MAX_RETRIES)"
+            sleep $RETRY_INTERVAL
+          done
+          echo "Timed out waiting for NPM propagation. You may need to retry MCP registry publish later."
 
       - name: Authenticate to MCP Registry
         if: steps.check_version.outputs.publish == 'true'
@@ -87,3 +90,11 @@ jobs:
       - name: Publish to MCP Registry
         if: steps.check_version.outputs.publish == 'true'
         run: ./mcp-publisher publish
+
+      - name: Create and push Git Tag
+        if: steps.check_version.outputs.publish == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag v${{ steps.check_version.outputs.version }}
+          git push origin v${{ steps.check_version.outputs.version }}
