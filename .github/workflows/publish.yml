@@ -1,0 +1,89 @@
+name: Automate Publish and Tag
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect version changes
+        id: check_version
+        run: |
+          VERSION=$(cat package.json | grep -o '"version": "[^"]*' | cut -d'"' -f4)
+
+          if git ls-remote --tags origin | grep -q "refs/tags/v$VERSION"; then
+            echo "Version $VERSION already has a tag. Skipping publication."
+            echo "publish=false" >> $GITHUB_OUTPUT
+          else
+            echo "New version detected: $VERSION. Starting publication!"
+            echo "publish=true" >> $GITHUB_OUTPUT
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create and push Git Tag
+        if: steps.check_version.outputs.publish == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag v${{ steps.check_version.outputs.version }}
+          git push origin v${{ steps.check_version.outputs.version }}
+
+      - name: Set up pnpm
+        if: steps.check_version.outputs.publish == 'true'
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.25.0
+
+      - name: Set up Node.js
+        if: steps.check_version.outputs.publish == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Install dependencies
+        if: steps.check_version.outputs.publish == 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Build application
+        if: steps.check_version.outputs.publish == 'true'
+        run: pnpm build
+
+      - name: Publish to NPM
+        if: steps.check_version.outputs.publish == 'true'
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Install mcp-publisher
+        if: steps.check_version.outputs.publish == 'true'
+        run: |
+          curl -L "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz" | tar xz mcp-publisher
+          chmod +x mcp-publisher
+
+      - name: Wait for NPM cache propagation
+        if: steps.check_version.outputs.publish == 'true'
+        run: |
+          echo "Waiting 60 seconds for NPM registry to update its edge caches..."
+          sleep 60
+
+      - name: Authenticate to MCP Registry
+        if: steps.check_version.outputs.publish == 'true'
+        run: ./mcp-publisher login github-oidc
+
+      - name: Publish to MCP Registry
+        if: steps.check_version.outputs.publish == 'true'
+        run: ./mcp-publisher publish
