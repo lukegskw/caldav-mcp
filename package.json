@@ -1,8 +1,21 @@
 {
-  "name": "caldav-mcp",
+  "name": "@lukegskw/caldav-mcp",
   "version": "0.1.0",
-  "private": true,
   "license": "MIT",
+  "bin": {
+    "caldav-mcp": "./dist/main.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "server.json"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lukegskw/caldav-mcp.git"
+  },
+  "mcpName": "io.github.lukegskw/caldav-mcp",
   "description": "A TypeScript MCP server for iCloud Calendar with native multi-VALARM support.",
   "type": "module",
   "engines": {

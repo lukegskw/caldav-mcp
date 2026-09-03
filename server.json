@@ -38,6 +38,37 @@
           "name": "CALDAV_PASSWORD"
         }
       ]
+    },
+    {
+      "registryType": "npm",
+      "identifier": "@lukegskw/caldav-mcp",
+      "version": "0.1.0",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "description": "Your CalDAV server URL (e.g. https://caldav.icloud.com)",
+          "isRequired": true,
+          "format": "string",
+          "isSecret": false,
+          "name": "CALDAV_URL"
+        },
+        {
+          "description": "Your CalDAV username",
+          "isRequired": true,
+          "format": "string",
+          "isSecret": false,
+          "name": "CALDAV_USERNAME"
+        },
+        {
+          "description": "Your CalDAV password or app-specific password",
+          "isRequired": true,
+          "format": "string",
+          "isSecret": true,
+          "name": "CALDAV_PASSWORD"
+        }
+      ]
     }
   ]
 }
