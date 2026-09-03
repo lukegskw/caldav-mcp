@@ -12,7 +12,6 @@
     {
       "registryType": "oci",
       "identifier": "ghcr.io/lukegskw/caldav-mcp:latest",
-      "version": "0.1.0",
       "transport": {
         "type": "stdio"
       },
