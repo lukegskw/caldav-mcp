@@ -3,7 +3,7 @@
   "name": "io.github.lukegskw/caldav-mcp",
   "title": "CalDAV MCP Server",
   "description": "A TypeScript MCP server for iCloud Calendar with native multi-VALARM support.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "repository": {
     "url": "https://github.com/lukegskw/caldav-mcp",
     "source": "github"
