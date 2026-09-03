@@ -3,7 +3,7 @@
   "name": "io.github.lukegskw/caldav-mcp",
   "title": "CalDAV MCP Server",
   "description": "A TypeScript MCP server for iCloud Calendar with native multi-VALARM support.",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "repository": {
     "url": "https://github.com/lukegskw/caldav-mcp",
     "source": "github"
@@ -11,18 +11,11 @@
   "packages": [
     {
       "registryType": "oci",
-      "identifier": "ghcr.io/lukegskw/caldav-mcp:latest",
+      "identifier": "ghcr.io/lukegskw/caldav-mcp:0.1.4",
       "transport": {
         "type": "stdio"
       },
       "environmentVariables": [
-        {
-          "description": "Your CalDAV server URL (e.g. https://caldav.icloud.com)",
-          "isRequired": true,
-          "format": "string",
-          "isSecret": false,
-          "name": "CALDAV_URL"
-        },
         {
           "description": "Your CalDAV username",
           "isRequired": true,
@@ -42,18 +35,11 @@
     {
       "registryType": "npm",
       "identifier": "@lukegskw/caldav-mcp",
-      "version": "0.1.3",
+      "version": "0.1.4",
       "transport": {
         "type": "stdio"
       },
       "environmentVariables": [
-        {
-          "description": "Your CalDAV server URL (e.g. https://caldav.icloud.com)",
-          "isRequired": true,
-          "format": "string",
-          "isSecret": false,
-          "name": "CALDAV_URL"
-        },
         {
           "description": "Your CalDAV username",
           "isRequired": true,

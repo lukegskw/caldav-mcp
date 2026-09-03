@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   createMcpServer,
   listEventsOutputSchema,
+  SERVER_VERSION,
   type CalendarService,
   type EventResult,
 } from "../../src/index.js";
@@ -122,6 +123,10 @@ afterEach(async () => {
 describe("MCP server", () => {
   it("publishes all six tools with risk annotations and 2020-12 schemas", async () => {
     const { client } = await connect(createService());
+    expect(client.getServerVersion()).toEqual({
+      name: "caldav-mcp",
+      version: SERVER_VERSION,
+    });
     const tools = await client.listTools();
 
     expect(tools.tools.map((tool) => tool.name)).toEqual([

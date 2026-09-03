@@ -3,7 +3,6 @@ name: Container image
 on:
   push:
     branches: [main]
-    tags: ["v*.*.*"]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -96,6 +95,9 @@ jobs:
       - name: Build application
         run: pnpm build
 
+      - name: Smoke-test npm package
+        run: pnpm test:package
+
   build:
     needs: quality
     runs-on: ubuntu-latest
@@ -126,8 +128,6 @@ jobs:
             type=raw,value=latest,enable={{is_default_branch}}
             type=ref,event=branch
             type=ref,event=pr
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
             type=sha
 
       - name: Build and publish image

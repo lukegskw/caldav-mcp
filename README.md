@@ -2,7 +2,10 @@
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![CI](https://github.com/lukegskw/caldav-mcp/actions/workflows/container.yml/badge.svg)](https://github.com/lukegskw/caldav-mcp/actions/workflows/container.yml)
+[![npm](https://img.shields.io/npm/v/@lukegskw/caldav-mcp?logo=npm)](https://www.npmjs.com/package/@lukegskw/caldav-mcp)
+[![npm downloads](https://img.shields.io/npm/dm/@lukegskw/caldav-mcp?logo=npm)](https://www.npmjs.com/package/@lukegskw/caldav-mcp)
 [![Container](https://img.shields.io/badge/GHCR-amd64%20%7C%20arm64-2496ED?logo=docker&logoColor=white)](https://github.com/lukegskw/caldav-mcp/pkgs/container/caldav-mcp)
+[![MCP Registry](https://img.shields.io/badge/MCP_Registry-listed-5A67D8)](https://registry.modelcontextprotocol.io/?q=io.github.lukegskw%2Fcaldav-mcp)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 **CalDAV MCP Server** is a Model Context Protocol server for managing iCloud Calendar
@@ -14,6 +17,32 @@ HTTP.
 
 This independent project is not affiliated with, authorized, sponsored, or approved by
 Apple Inc. Apple and iCloud are trademarks of their respective owner.
+
+## Quick start
+
+Install [Node.js 24+](https://nodejs.org/), create an
+[Apple app-specific password](https://support.apple.com/en-us/102654), and add this
+local `stdio` server to a JSON-configured MCP client such as Claude Desktop or Gemini:
+
+```json
+{
+  "mcpServers": {
+    "icloud-calendar": {
+      "command": "npx",
+      "args": ["--yes", "@lukegskw/caldav-mcp@0.1.4"],
+      "env": {
+        "CALDAV_USERNAME": "user@example.com",
+        "CALDAV_PASSWORD": "xxxx-xxxx-xxxx-xxxx"
+      }
+    }
+  }
+}
+```
+
+Restart the client and confirm that it lists six calendar tools. See
+[client-specific setup](#mcp-client-setup) and [Docker deployment](#docker-compose)
+below. Keep the configuration file private because it contains the app-specific
+password.
 
 ## Navigation
 
@@ -27,6 +56,7 @@ Apple Inc. Apple and iCloud are trademarks of their respective owner.
 - [Verification](#verification)
 - [Limitations](#limitations)
 - [Contributing](#contributing)
+- [Releasing](#releasing)
 
 ## About
 
@@ -176,8 +206,22 @@ Deleting a single expanded occurrence is not supported in the current release.
 - An iCloud account with Calendar enabled.
 - Two-factor authentication enabled for the Apple Account.
 - An [app-specific password](https://support.apple.com/en-us/102654).
-- Docker and Docker Compose for container deployment, or Node.js 24+ and pnpm for a
-  local installation.
+- Docker and Docker Compose for container deployment, or Node.js 24+ for `npx`.
+- pnpm is required only when building from source.
+
+### npm / npx
+
+No global install or repository clone is required. MCP clients can launch the pinned
+package directly:
+
+```sh
+CALDAV_USERNAME='user@example.com' \
+CALDAV_PASSWORD='xxxx-xxxx-xxxx-xxxx' \
+npx --yes @lukegskw/caldav-mcp@0.1.4
+```
+
+The command waits for MCP messages on stdin and normally prints nothing to stdout. In
+practice, add it to the client configuration as shown in [MCP client setup](#mcp-client-setup).
 
 ### Docker Compose
 
@@ -313,11 +357,68 @@ mcp_servers:
     url: http://caldav-mcp:8100/mcp
 ```
 
-For clients that launch local `stdio` servers, configure the command to run
-`node /absolute/path/to/caldav-mcp/dist/main.js` with the required environment
-variables.
+For clients that launch local `stdio` servers, prefer the versioned npm command from
+[Quick start](#quick-start). If a desktop client cannot find `npx`, use the absolute
+path reported by `command -v npx` on macOS/Linux or `where npx` on Windows.
 
-### Claude Desktop (Docker, stdio)
+### Claude Desktop
+
+Add the [Quick start](#quick-start) JSON under `mcpServers` in
+`claude_desktop_config.json`, then completely restart Claude Desktop. Open the file
+through **Settings -> Developer -> Edit Config** instead of assuming its location.
+
+### Claude Code
+
+[Claude Code](https://code.claude.com/docs/en/mcp) can add the same `stdio` server at
+user scope:
+
+```sh
+claude mcp add --transport stdio --scope user \
+  --env CALDAV_USERNAME=user@example.com \
+  --env CALDAV_PASSWORD=xxxx-xxxx-xxxx-xxxx \
+  icloud-calendar -- npx --yes @lukegskw/caldav-mcp@0.1.4
+```
+
+This command places the values in Claude's MCP configuration. Avoid running it where
+shell history is shared or retained insecurely.
+
+### Codex
+
+Codex can add the server to its shared CLI and IDE configuration:
+
+```sh
+codex mcp add icloud-calendar \
+  --env CALDAV_USERNAME=user@example.com \
+  --env CALDAV_PASSWORD=xxxx-xxxx-xxxx-xxxx \
+  -- npx --yes @lukegskw/caldav-mcp@0.1.4
+```
+
+Run `codex mcp list` to verify it. For finer control, use the
+[official Codex MCP configuration](https://developers.openai.com/codex/mcp/) in
+`~/.codex/config.toml` or a project-scoped `.codex/config.toml`.
+
+### Gemini CLI
+
+Following the [Gemini CLI MCP configuration](https://geminicli.com/docs/tools/mcp-server/),
+add the server under `mcpServers` in `~/.gemini/settings.json` (user scope) or the
+project's `.gemini/settings.json`:
+
+```json
+{
+  "mcpServers": {
+    "icloud-calendar": {
+      "command": "npx",
+      "args": ["--yes", "@lukegskw/caldav-mcp@0.1.4"],
+      "env": {
+        "CALDAV_USERNAME": "user@example.com",
+        "CALDAV_PASSWORD": "xxxx-xxxx-xxxx-xxxx"
+      }
+    }
+  }
+}
+```
+
+### Claude Desktop (Docker, stdio alternative)
 
 Claude Desktop launches local `stdio` servers as subprocesses. Running the published
 container this way keeps the app-specific password on the client machine and opens no
@@ -371,10 +472,8 @@ Restart Claude Desktop completely after editing the configuration file.
 
 #### Windows
 
-Create and locate the configuration file through **Settings -> Developer -> Edit
-Config**. Do not assume a path. When Claude Desktop is installed from the Microsoft
-Store, Windows redirects `%APPDATA%\Claude` into the package container and the file
-lives at:
+When Claude Desktop is installed from the Microsoft Store, Windows redirects
+`%APPDATA%\Claude` into the package container and the file lives at:
 
 ```
 %LOCALAPPDATA%\Packages\Claude_<package-id>\LocalCache\Roaming\Claude\claude_desktop_config.json
@@ -413,6 +512,7 @@ pnpm typecheck
 pnpm test:unit
 pnpm test:integration
 pnpm build
+pnpm test:package
 ```
 
 Finally, connect with an MCP client and confirm that all six tools are listed. Before a
@@ -456,6 +556,22 @@ Changes to CalDAV writes or iCalendar serialization must preserve ETag checks, o
 resource boundaries, unknown properties, recurrence exceptions, and alarms omitted from
 patches. TypeScript changes must continue to satisfy the rules in
 [`.codex/rules/typescript.md`](.codex/rules/typescript.md).
+
+## Releasing
+
+Releases are explicit and tag-driven so that a partial registry outage can be retried
+without publishing a second npm version.
+
+1. Update the version in `package.json` and all three version references in
+   `server.json` (top-level, npm package, and OCI image tag).
+2. Run the verification suite, including `pnpm test:package`.
+3. Commit and push the release changes, then wait for the main-branch checks to pass.
+4. Create and push the matching tag, for example `git tag vX.Y.Z` followed by
+   `git push origin vX.Y.Z`.
+
+The release workflow validates the versions, tests the packed npm artifact, publishes
+the immutable container tag, npm package, MCP Registry entry, and GitHub release. A
+rerun skips matching artifacts that already exist and resumes the missing steps.
 
 ## License
 

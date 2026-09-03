@@ -2,6 +2,7 @@ import { McpServer, type CallToolResult } from "@modelcontextprotocol/server";
 
 import { createAppError, isAppError } from "../errors.js";
 import type { CalendarService } from "../services/index.js";
+import { SERVER_VERSION } from "../version.js";
 import { paginateEvents } from "./cursor.js";
 import {
   createEventToolInputSchema,
@@ -75,7 +76,7 @@ const resolveResourceId = async (
 };
 
 export const createMcpServer = (service: CalendarService): McpServer => {
-  const server = new McpServer({ name: "caldav-mcp", version: "0.1.0" });
+  const server = new McpServer({ name: "caldav-mcp", version: SERVER_VERSION });
 
   server.registerTool(
     "list_calendars",
