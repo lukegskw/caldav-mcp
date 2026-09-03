@@ -51,7 +51,9 @@ describe("container publication metadata", () => {
     );
     expect(serverJson).not.toContain('"name": "CALDAV_URL"');
     expect(readme).toContain(`"@lukegskw/caldav-mcp@${SERVER_VERSION}"`);
-    expect(workflow).toContain('tags: ["v*.*.*"]');
+    expect(workflow).toContain("branches: [main]");
+    expect(workflow).toContain("Create release tag");
+    expect(workflow).toContain("should_publish");
     expect(workflow).toContain("pnpm test:package");
     expect(workflow).toContain("mcp-publisher validate");
     expect(workflow).toContain("npm publish --provenance");

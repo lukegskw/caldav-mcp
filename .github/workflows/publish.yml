@@ -2,10 +2,10 @@ name: Publish release
 
 on:
   push:
-    tags: ["v*.*.*"]
+    branches: [main]
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-${{ github.repository }}
   cancel-in-progress: false
 
 permissions:
@@ -18,31 +18,58 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
+  release-check:
+    runs-on: ubuntu-latest
+    outputs:
+      release_version: ${{ steps.release.outputs.release_version }}
+      release_tag: ${{ steps.release.outputs.release_tag }}
+      should_publish: ${{ steps.release.outputs.should_publish }}
+    steps:
+      - name: Check out repository and tags
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Validate versions and detect release
+        id: release
+        shell: bash
+        run: |
+          set -euo pipefail
+          PACKAGE_VERSION=$(jq -r '.version' package.json)
+          SERVER_VERSION=$(jq -r '.version' server.json)
+          NPM_PACKAGE_VERSION=$(jq -r '.packages[] | select(.registryType == "npm") | .version' server.json)
+          OCI_IDENTIFIER=$(jq -r '.packages[] | select(.registryType == "oci") | .identifier' server.json)
+          RELEASE_TAG="v$PACKAGE_VERSION"
+
+          test "$SERVER_VERSION" = "$PACKAGE_VERSION"
+          test "$NPM_PACKAGE_VERSION" = "$PACKAGE_VERSION"
+          test "$OCI_IDENTIFIER" = "ghcr.io/${GITHUB_REPOSITORY}:$PACKAGE_VERSION"
+
+          echo "release_version=$PACKAGE_VERSION" >> "$GITHUB_OUTPUT"
+          echo "release_tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
+
+          if git rev-parse --quiet --verify "refs/tags/$RELEASE_TAG" > /dev/null; then
+            TAG_COMMIT=$(git rev-list -n 1 "$RELEASE_TAG")
+            if [ "$TAG_COMMIT" = "$GITHUB_SHA" ]; then
+              echo "Tag $RELEASE_TAG already identifies this commit; resuming release."
+              echo "should_publish=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "Version $PACKAGE_VERSION was already released from commit $TAG_COMMIT."
+              echo "should_publish=false" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "Version $PACKAGE_VERSION has not been released yet."
+            echo "should_publish=true" >> "$GITHUB_OUTPUT"
+          fi
+
   publish:
+    needs: release-check
+    if: needs.release-check.outputs.should_publish == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
-
-      - name: Validate release versions
-        id: versions
-        shell: bash
-        run: |
-          set -euo pipefail
-          RELEASE_VERSION="${GITHUB_REF_NAME#v}"
-          PACKAGE_VERSION=$(jq -r '.version' package.json)
-          SERVER_VERSION=$(jq -r '.version' server.json)
-          NPM_PACKAGE_VERSION=$(jq -r '.packages[] | select(.registryType == "npm") | .version' server.json)
-          OCI_IDENTIFIER=$(jq -r '.packages[] | select(.registryType == "oci") | .identifier' server.json)
-
-          test "$GITHUB_REF_NAME" = "v$PACKAGE_VERSION"
-          test "$RELEASE_VERSION" = "$PACKAGE_VERSION"
-          test "$SERVER_VERSION" = "$PACKAGE_VERSION"
-          test "$NPM_PACKAGE_VERSION" = "$PACKAGE_VERSION"
-          test "$OCI_IDENTIFIER" = "ghcr.io/${GITHUB_REPOSITORY}:$PACKAGE_VERSION"
-
-          echo "release_version=$RELEASE_VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Set up pnpm
         uses: pnpm/action-setup@v4
@@ -130,6 +157,18 @@ jobs:
       - name: Validate MCP Registry manifest
         run: ./mcp-publisher validate
 
+      - name: Create release tag
+        env:
+          RELEASE_TAG: ${{ needs.release-check.outputs.release_tag }}
+        run: |
+          if git ls-remote --exit-code origin "refs/tags/$RELEASE_TAG" > /dev/null 2>&1; then
+            git fetch --no-tags origin "refs/tags/$RELEASE_TAG:refs/tags/$RELEASE_TAG"
+            test "$(git rev-list -n 1 "$RELEASE_TAG")" = "$GITHUB_SHA"
+          else
+            git tag "$RELEASE_TAG"
+            git push origin "$RELEASE_TAG"
+          fi
+
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v4
         with:
@@ -140,7 +179,7 @@ jobs:
       - name: Check existing container image
         id: container
         run: |
-          if docker manifest inspect "${REGISTRY}/${IMAGE_NAME}:${{ steps.versions.outputs.release_version }}" > /dev/null 2>&1; then
+          if docker manifest inspect "${REGISTRY}/${IMAGE_NAME}:${{ needs.release-check.outputs.release_version }}" > /dev/null 2>&1; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
           else
             echo "exists=false" >> "$GITHUB_OUTPUT"
@@ -161,7 +200,7 @@ jobs:
           context: .
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.versions.outputs.release_version }}
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.release-check.outputs.release_version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -169,9 +208,9 @@ jobs:
         id: npm
         run: |
           STATUS=$(curl --silent --output /dev/null --write-out '%{http_code}' \
-            "https://registry.npmjs.org/@lukegskw/caldav-mcp/${{ steps.versions.outputs.release_version }}")
+            "https://registry.npmjs.org/@lukegskw/caldav-mcp/${{ needs.release-check.outputs.release_version }}")
           if [ "$STATUS" = "200" ]; then
-            PUBLISHED_GIT_HEAD=$(npm view "@lukegskw/caldav-mcp@${{ steps.versions.outputs.release_version }}" gitHead)
+            PUBLISHED_GIT_HEAD=$(npm view "@lukegskw/caldav-mcp@${{ needs.release-check.outputs.release_version }}" gitHead)
             test "$PUBLISHED_GIT_HEAD" = "$GITHUB_SHA"
             echo "exists=true" >> "$GITHUB_OUTPUT"
           elif [ "$STATUS" = "404" ]; then
@@ -191,7 +230,7 @@ jobs:
         run: |
           for attempt in {1..20}; do
             if curl --fail --silent \
-              "https://registry.npmjs.org/@lukegskw/caldav-mcp/${{ steps.versions.outputs.release_version }}" \
+              "https://registry.npmjs.org/@lukegskw/caldav-mcp/${{ needs.release-check.outputs.release_version }}" \
               > /dev/null; then
               exit 0
             fi
@@ -205,7 +244,7 @@ jobs:
         id: mcp_registry
         run: |
           STATUS=$(curl --silent --output /dev/null --write-out '%{http_code}' \
-            "https://registry.modelcontextprotocol.io/v0.1/servers/io.github.lukegskw%2Fcaldav-mcp/versions/${{ steps.versions.outputs.release_version }}")
+            "https://registry.modelcontextprotocol.io/v0.1/servers/io.github.lukegskw%2Fcaldav-mcp/versions/${{ needs.release-check.outputs.release_version }}")
           if [ "$STATUS" = "200" ]; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
           elif [ "$STATUS" = "404" ]; then
@@ -226,6 +265,7 @@ jobs:
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.release-check.outputs.release_tag }}
         run: |
-          gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1 \
-            || gh release create "$GITHUB_REF_NAME" --verify-tag --generate-notes --title "$GITHUB_REF_NAME"
+          gh release view "$RELEASE_TAG" > /dev/null 2>&1 \
+            || gh release create "$RELEASE_TAG" --verify-tag --generate-notes --title "$RELEASE_TAG"

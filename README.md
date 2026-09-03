@@ -559,15 +559,15 @@ patches. TypeScript changes must continue to satisfy the rules in
 
 ## Releasing
 
-Releases are explicit and tag-driven so that a partial registry outage can be retried
-without publishing a second npm version.
+Releases are version-driven and automated from `main` so that a partial registry outage
+can be retried without publishing a second npm version.
 
 1. Update the version in `package.json` and all three version references in
    `server.json` (top-level, npm package, and OCI image tag).
 2. Run the verification suite, including `pnpm test:package`.
-3. Commit and push the release changes, then wait for the main-branch checks to pass.
-4. Create and push the matching tag, for example `git tag vX.Y.Z` followed by
-   `git push origin vX.Y.Z`.
+3. Commit and push the release changes to `main`.
+4. The release workflow validates the commit and creates the matching `vX.Y.Z` tag
+   automatically before publishing.
 
 The release workflow validates the versions, tests the packed npm artifact, publishes
 the immutable container tag, npm package, MCP Registry entry, and GitHub release. A
