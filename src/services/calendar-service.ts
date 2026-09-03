@@ -5,11 +5,13 @@ import {
   readResourceId,
   type CalDavGateway,
   type CalendarInfo,
+  type CalendarResource,
 } from "../caldav/index.js";
 import { createAppError } from "../errors.js";
 import {
   createCalendarEvent,
   expandCalendarEvent,
+  extractCalendarEventUid,
   normalizeCalendarEvent,
   patchCalendarEvent,
 } from "../ical/index.js";
@@ -57,6 +59,10 @@ export type CalendarService = {
     uid: string,
     includeRawIcal?: boolean,
   ) => Promise<EventResult>;
+  readonly findEventResourceId: (
+    calendarId: string,
+    uid: string,
+  ) => Promise<string>;
   readonly createEvent: (input: CreateEventInput) => Promise<EventResult>;
   readonly updateEvent: (input: UpdateEventInput) => Promise<EventResult>;
   readonly deleteEvent: (input: DeleteEventInput) => Promise<{ deleted: true }>;
@@ -137,14 +143,13 @@ export const createCalendarService = (
     };
   };
 
-  const findEvent = async (
+  const findEventResource = async (
     calendarId: string,
     uid: string,
-    includeRawIcal = false,
-  ): Promise<EventResult> => {
+  ): Promise<CalendarResource> => {
     const resources = await gateway.listResources(calendarId);
     const matching = resources.filter(
-      (resource) => normalizeCalendarEvent(resource.data).uid === uid,
+      (resource) => extractCalendarEventUid(resource.data) === uid,
     );
     if (matching.length === 0) {
       throw createAppError({
@@ -165,8 +170,20 @@ export const createCalendarService = (
         message: "The calendar event was not found",
       });
     }
-    return eventResult(match, includeRawIcal);
+    return match;
   };
+
+  const findEvent = async (
+    calendarId: string,
+    uid: string,
+    includeRawIcal = false,
+  ): Promise<EventResult> =>
+    eventResult(await findEventResource(calendarId, uid), includeRawIcal);
+
+  const findEventResourceId = async (
+    calendarId: string,
+    uid: string,
+  ): Promise<string> => (await findEventResource(calendarId, uid)).resourceId;
 
   const requireSeriesResource = (resourceId: string): void => {
     if (readResourceId(resourceId).recurrenceId !== undefined) {
@@ -256,6 +273,7 @@ export const createCalendarService = (
     listEvents,
     getEvent,
     findEvent,
+    findEventResourceId,
     createEvent,
     updateEvent,
     deleteEvent,

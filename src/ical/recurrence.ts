@@ -4,14 +4,15 @@ import { createAppError } from "../errors.js";
 import { MAX_EVENT_OCCURRENCES_PER_RESOURCE } from "../limits.js";
 import {
   isTimedTemporalValue,
+  type CalendarTemporalValue,
   type NormalizedEvent,
-  type TemporalValue,
 } from "../schemas/index.js";
 import {
   componentString,
+  type CalendarTimezoneDefinition,
   findMasterEvent,
   normalizeEventComponent,
-  parseCalendar,
+  parseCalendarDocument,
   temporalFromIcalTime,
 } from "./codec.js";
 import { readAlarms } from "./alarms.js";
@@ -57,12 +58,26 @@ const eventText = (
 const occurrenceTemporal = (
   value: ICAL.Time,
   timezone: unknown,
-): TemporalValue => temporalFromIcalTime(value, timezone);
+  timezones: ReadonlyMap<string, CalendarTimezoneDefinition>,
+): CalendarTemporalValue => temporalFromIcalTime(value, timezone, timezones);
 
-const temporalMilliseconds = (value: TemporalValue): number =>
+const temporalMilliseconds = (value: CalendarTemporalValue): number =>
   Date.parse(
     isTimedTemporalValue(value) ? value.date_time : `${value.date}T00:00:00Z`,
   );
+
+const propertyTimezone = (
+  event: ICAL.Component,
+  propertyName: string,
+  fallbackTimezone?: string,
+): string | undefined => {
+  const timezone: unknown = event
+    .getFirstProperty(propertyName)
+    ?.getFirstParameter("tzid");
+  return typeof timezone === "string" && timezone !== ""
+    ? timezone
+    : fallbackTimezone;
+};
 
 export const expandCalendarEvent = (
   rawCalendar: string,
@@ -71,10 +86,14 @@ export const expandCalendarEvent = (
   maximumOccurrences = MAX_EVENT_OCCURRENCES_PER_RESOURCE,
   fallbackTimezone?: string,
 ): readonly NormalizedEvent[] => {
-  const calendar = parseCalendar(rawCalendar);
-  const master = findMasterEvent(calendar);
+  const document = parseCalendarDocument(rawCalendar);
+  const master = findMasterEvent(document.calendar);
   const event = new ICAL.Event(master);
-  const normalizedMaster = normalizeEventComponent(master, fallbackTimezone);
+  const normalizedMaster = normalizeEventComponent(
+    master,
+    fallbackTimezone,
+    document.timezones,
+  );
   if (!event.isRecurring()) {
     return [normalizedMaster];
   }
@@ -93,12 +112,8 @@ export const expandCalendarEvent = (
   }
 
   const iterator = event.iterator();
-  const startProperty = master.getFirstProperty("dtstart");
-  const propertyTimezone: unknown = startProperty?.getFirstParameter("tzid");
-  const timezone =
-    typeof propertyTimezone === "string" && propertyTimezone !== ""
-      ? propertyTimezone
-      : fallbackTimezone;
+  const startTimezone = propertyTimezone(master, "dtstart", fallbackTimezone);
+  const endTimezone = propertyTimezone(master, "dtend", startTimezone);
   const occurrences: NormalizedEvent[] = [];
 
   for (let iteration = 0; iteration < 100_000; iteration += 1) {
@@ -107,24 +122,29 @@ export const expandCalendarEvent = (
       return occurrences;
     }
     const candidateMilliseconds = temporalMilliseconds(
-      occurrenceTemporal(candidate, timezone),
+      occurrenceTemporal(candidate, startTimezone, document.timezones),
     );
     if (candidateMilliseconds >= endMilliseconds) {
       return occurrences;
     }
     const details = occurrenceDetails(event, candidate);
+    const item = details.item.component;
     const occurrenceStartTemporal = occurrenceTemporal(
       details.startDate,
-      timezone,
+      propertyTimezone(item, "dtstart", startTimezone),
+      document.timezones,
     );
-    const occurrenceEndTemporal = occurrenceTemporal(details.endDate, timezone);
+    const occurrenceEndTemporal = occurrenceTemporal(
+      details.endDate,
+      propertyTimezone(item, "dtend", endTimezone),
+      document.timezones,
+    );
     const occurrenceStart = temporalMilliseconds(occurrenceStartTemporal);
     const occurrenceEnd = temporalMilliseconds(occurrenceEndTemporal);
     if (
       occurrenceStart < endMilliseconds &&
       occurrenceEnd > startMilliseconds
     ) {
-      const item = details.item.component;
       const itemAlarms = readAlarms(item);
       occurrences.push({
         ...normalizedMaster,

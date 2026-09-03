@@ -71,7 +71,7 @@ const resolveResourceId = async (
       message: "An event resource identifier is required",
     });
   }
-  return (await service.findEvent(locator.calendar_id, locator.uid)).resourceId;
+  return service.findEventResourceId(locator.calendar_id, locator.uid);
 };
 
 export const createMcpServer = (service: CalendarService): McpServer => {

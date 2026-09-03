@@ -2,10 +2,10 @@ import { z } from "zod";
 
 import { MAX_EVENT_PAGE_SIZE } from "../limits.js";
 import {
+  calendarTemporalValueSchema,
   createEventInputSchema,
   eventPatchSchema,
   isValidTimezone,
-  temporalValueSchema,
 } from "../schemas/index.js";
 
 const instantSchema = z.iso
@@ -131,8 +131,8 @@ export const eventOutputSchema = z
     href: z.string(),
     etag: z.string().nullable(),
     summary: z.string(),
-    start: temporalValueSchema,
-    end: temporalValueSchema,
+    start: calendarTemporalValueSchema,
+    end: calendarTemporalValueSchema,
     description: z.string().nullable(),
     location: z.string().nullable(),
     rrule: z.string().nullable(),
