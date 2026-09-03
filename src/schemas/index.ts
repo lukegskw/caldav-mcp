@@ -13,6 +13,8 @@ export {
 } from "./events.js";
 export {
   allDayTemporalValueSchema,
+  calendarTemporalValueSchema,
+  calendarTimedTemporalValueSchema,
   calendarDateSchema,
   isDateTimeCompatibleWithTimezone,
   isTimedTemporalValue,
@@ -20,6 +22,8 @@ export {
   temporalValueSchema,
   timedTemporalValueSchema,
   type AllDayTemporalValue,
+  type CalendarTemporalValue,
+  type CalendarTimedTemporalValue,
   type TemporalValue,
   type TimedTemporalValue,
 } from "./time.js";

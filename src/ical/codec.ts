@@ -2,9 +2,10 @@ import { randomUUID } from "node:crypto";
 
 import ICAL from "ical.js";
 
-import { createAppError } from "../errors.js";
+import { createAppError, isAppError } from "../errors.js";
 import {
   isTimedTemporalValue,
+  type CalendarTemporalValue,
   type CreateEventInput,
   type EventPatch,
   type NormalizedEvent,
@@ -111,6 +112,156 @@ export const parseCalendar = (rawCalendar: string): ICAL.Component => {
   }
 };
 
+export type CalendarDocument = {
+  readonly calendar: ICAL.Component;
+  readonly timezones: ReadonlyMap<string, CalendarTimezoneDefinition>;
+};
+
+export type CalendarTimezoneDefinition = {
+  readonly timezone: ICAL.Timezone;
+  readonly provenance: CalendarTimezoneProvenance;
+};
+
+type CalendarTimezoneObservance = {
+  readonly component: ICAL.Component;
+  readonly hasSubminuteOffsetTo: boolean;
+};
+
+type IcalTimezoneTransition = {
+  readonly year: number;
+  readonly month: number;
+  readonly day: number;
+  readonly hour: number;
+  readonly minute: number;
+  readonly second: number;
+  readonly utcOffset: number;
+  readonly prevUtcOffset: number;
+  readonly is_daylight: boolean;
+};
+
+type CalendarTimezoneTransition = IcalTimezoneTransition & {
+  readonly hasSubminuteOffsetTo: boolean;
+};
+
+type CalendarTimezoneProvenance = {
+  readonly timezone: ICAL.Timezone;
+  readonly observances: readonly CalendarTimezoneObservance[];
+  readonly changes: CalendarTimezoneTransition[];
+  expandedUntilYear: number;
+};
+
+const invalidCalendarTimezone = (cause?: unknown): Error =>
+  createAppError({
+    code: "INVALID_ICALENDAR",
+    message: "The event contains an invalid timezone definition",
+    ...(cause === undefined ? {} : { cause }),
+  });
+
+const timezoneObservances = (
+  component: ICAL.Component,
+): readonly ICAL.Component[] =>
+  component
+    .getAllSubcomponents()
+    .filter(
+      (subcomponent) =>
+        subcomponent.name === "standard" || subcomponent.name === "daylight",
+    );
+
+const validateTimezoneComponent = (component: ICAL.Component): void => {
+  const observances = timezoneObservances(component);
+  if (observances.length === 0) {
+    throw invalidCalendarTimezone();
+  }
+  for (const observance of observances) {
+    if (
+      !observance.hasProperty("dtstart") ||
+      !observance.hasProperty("tzoffsetfrom") ||
+      !observance.hasProperty("tzoffsetto")
+    ) {
+      throw invalidCalendarTimezone();
+    }
+  }
+};
+
+const hasSubminuteOffset = (value: unknown): boolean => {
+  if (typeof value !== "string") {
+    return false;
+  }
+  const match = /^([+-])(\d{2}):(\d{2}):(\d{2})$/.exec(value);
+  if (match === null) {
+    return false;
+  }
+  const hours = Number(match[2]);
+  const minutes = Number(match[3]);
+  const seconds = Number(match[4]);
+  if (hours > 23 || minutes > 59 || seconds > 59) {
+    throw invalidCalendarTimezone();
+  }
+  return seconds !== 0;
+};
+
+const timezoneDefinition = (
+  component: ICAL.Component,
+  tzid: string,
+): CalendarTimezoneDefinition => {
+  // Expansion can normalize a UTC RRULE UNTIL in place, so provenance needs
+  // an isolated component rather than sharing mutable recurrence state.
+  const provenanceComponent = ICAL.Component.fromString(component.toString());
+  const observances = timezoneObservances(provenanceComponent).map(
+    (observance) => ({
+      component: observance,
+      hasSubminuteOffsetTo: hasSubminuteOffset(
+        observance.getFirstProperty("tzoffsetto")?.jCal[3],
+      ),
+    }),
+  );
+  const provenanceTimezone = new ICAL.Timezone({
+    component: provenanceComponent,
+    tzid,
+  });
+  const changes: CalendarTimezoneTransition[] = [];
+  provenanceTimezone.changes = changes;
+  return {
+    timezone: new ICAL.Timezone({ component, tzid }),
+    provenance: {
+      timezone: provenanceTimezone,
+      observances,
+      changes,
+      expandedUntilYear: 0,
+    },
+  };
+};
+
+export const parseCalendarDocument = (
+  rawCalendar: string,
+): CalendarDocument => {
+  const calendar = parseCalendar(rawCalendar);
+  const timezones = new Map<string, CalendarTimezoneDefinition>();
+  for (const component of calendar.getAllSubcomponents("vtimezone")) {
+    const tzid = componentString(component, "tzid");
+    if (tzid === null || tzid === "") {
+      throw invalidCalendarTimezone();
+    }
+    const existing = timezones.get(tzid);
+    if (existing !== undefined) {
+      if (existing.timezone.component.toString() !== component.toString()) {
+        throw invalidCalendarTimezone();
+      }
+      continue;
+    }
+    try {
+      validateTimezoneComponent(component);
+      timezones.set(tzid, timezoneDefinition(component, tzid));
+    } catch (cause) {
+      if (isAppError(cause)) {
+        throw cause;
+      }
+      throw invalidCalendarTimezone(cause);
+    }
+  }
+  return { calendar, timezones };
+};
+
 export const findMasterEvent = (calendar: ICAL.Component): ICAL.Component => {
   const masters = calendar
     .getAllSubcomponents("vevent")
@@ -172,6 +323,165 @@ const offsetString = (offsetMinutes: number): string => {
   return `${sign}${pad(Math.floor(absolute / 60))}:${pad(absolute % 60)}`;
 };
 
+const ensureProvenanceCoverage = (
+  provenance: CalendarTimezoneProvenance,
+  year: number,
+): void => {
+  if (provenance.changes.length > 0 && provenance.expandedUntilYear >= year) {
+    return;
+  }
+  const minimumExpansionYear =
+    ICAL.Timezone._minimumExpansionYear === -1
+      ? ICAL.Time.now().year
+      : ICAL.Timezone._minimumExpansionYear;
+  const changesEndYear =
+    Math.max(year, minimumExpansionYear) + ICAL.Timezone.EXTRA_COVERAGE;
+  for (const observance of provenance.observances) {
+    const expanded: IcalTimezoneTransition[] = [];
+    provenance.timezone._expandComponent(
+      observance.component,
+      changesEndYear,
+      expanded,
+    );
+    provenance.changes.push(
+      ...expanded.map((transition) => ({
+        ...transition,
+        hasSubminuteOffsetTo: observance.hasSubminuteOffsetTo,
+      })),
+    );
+  }
+  provenance.changes.sort((first, second) =>
+    ICAL.Timezone._compare_change_fn(first, second),
+  );
+  provenance.expandedUntilYear = changesEndYear;
+};
+
+const adjustedTimezoneTransition = (
+  transition: CalendarTimezoneTransition,
+  offsetSeconds: number,
+): CalendarTimezoneTransition => {
+  const adjusted = ICAL.Time.fromData({
+    year: transition.year,
+    month: transition.month,
+    day: transition.day,
+    hour: transition.hour,
+    minute: transition.minute,
+    second: transition.second,
+    isDate: false,
+  });
+  adjusted.adjust(0, 0, 0, offsetSeconds);
+  return {
+    ...transition,
+    year: adjusted.year,
+    month: adjusted.month,
+    day: adjusted.day,
+    hour: adjusted.hour,
+    minute: adjusted.minute,
+    second: adjusted.second,
+  };
+};
+
+const activeTimezoneTransition = (
+  value: ICAL.Time,
+  provenance: CalendarTimezoneProvenance,
+): CalendarTimezoneTransition | null => {
+  ensureProvenanceCoverage(provenance, value.year);
+  const changes = provenance.changes;
+  if (changes.length === 0) {
+    return null;
+  }
+  const localTime = {
+    year: value.year,
+    month: value.month,
+    day: value.day,
+    hour: value.hour,
+    minute: value.minute,
+    second: value.second,
+  };
+  let changeIndex = provenance.timezone._findNearbyChange(localTime);
+  let activeIndex = -1;
+  let step = 1;
+  for (;;) {
+    const candidate = changes[changeIndex];
+    if (candidate === undefined) {
+      return null;
+    }
+    const adjustedCandidate = adjustedTimezoneTransition(
+      candidate,
+      candidate.utcOffset < candidate.prevUtcOffset
+        ? candidate.utcOffset
+        : candidate.prevUtcOffset,
+    );
+    if (ICAL.Timezone._compare_change_fn(localTime, adjustedCandidate) >= 0) {
+      activeIndex = changeIndex;
+    } else {
+      step = -1;
+    }
+    if (step === -1 && activeIndex !== -1) {
+      break;
+    }
+    changeIndex += step;
+    if (changeIndex < 0) {
+      return null;
+    }
+    if (changeIndex >= changes.length) {
+      break;
+    }
+  }
+  let active = changes[activeIndex];
+  if (active === undefined) {
+    return null;
+  }
+  if (active.utcOffset < active.prevUtcOffset && activeIndex > 0) {
+    const adjustedActive = adjustedTimezoneTransition(
+      active,
+      active.prevUtcOffset,
+    );
+    if (ICAL.Timezone._compare_change_fn(localTime, adjustedActive) < 0) {
+      const previous = changes[activeIndex - 1];
+      const wantDaylight = false;
+      if (
+        previous !== undefined &&
+        active.is_daylight !== wantDaylight &&
+        previous.is_daylight === wantDaylight
+      ) {
+        active = previous;
+      }
+    }
+  }
+  return active;
+};
+
+const embeddedZonedDateTime = (
+  value: ICAL.Time,
+  localDateTime: string,
+  definition: CalendarTimezoneDefinition,
+): string => {
+  try {
+    const offsetSeconds = definition.timezone.utcOffset(value);
+    const activeTransition = activeTimezoneTransition(
+      value,
+      definition.provenance,
+    );
+    if (
+      !Number.isInteger(offsetSeconds) ||
+      offsetSeconds % 60 !== 0 ||
+      Math.abs(offsetSeconds) >= 24 * 60 * 60 ||
+      activeTransition === null ||
+      activeTransition.utcOffset !== offsetSeconds ||
+      activeTransition.hasSubminuteOffsetTo
+    ) {
+      throw invalidCalendarTimezone();
+    }
+    return `${localDateTime}${offsetString(offsetSeconds / 60)}`;
+  } catch (cause) {
+    if (isAppError(cause)) {
+      throw cause;
+    }
+    throw invalidCalendarTimezone(cause);
+  }
+};
+
 const zonedDateTime = (localDateTime: string, timezone: string): string => {
   const naiveMilliseconds = Date.parse(`${localDateTime}Z`);
   for (let offset = -14 * 60; offset <= 14 * 60; offset += 15) {
@@ -189,16 +499,35 @@ const zonedDateTime = (localDateTime: string, timezone: string): string => {
 export const temporalFromIcalTime = (
   value: ICAL.Time,
   timezone: unknown,
-): TemporalValue => {
+  timezones: ReadonlyMap<string, CalendarTimezoneDefinition> = new Map(),
+): CalendarTemporalValue => {
   if (value.isDate) {
     return { date: value.toString() };
   }
   const localDateTime = localDateTimeFromIcal(value);
   if (typeof timezone === "string" && timezone !== "") {
-    return {
-      date_time: zonedDateTime(localDateTime, timezone),
-      timezone,
-    };
+    const embeddedTimezone = timezones.get(timezone);
+    if (embeddedTimezone !== undefined) {
+      return {
+        date_time: embeddedZonedDateTime(
+          value,
+          localDateTime,
+          embeddedTimezone,
+        ),
+        timezone,
+      };
+    }
+    try {
+      return {
+        date_time: zonedDateTime(localDateTime, timezone),
+        timezone,
+      };
+    } catch (cause) {
+      if (isAppError(cause)) {
+        throw cause;
+      }
+      throw invalidCalendarTimezone(cause);
+    }
   }
   return {
     date_time: `${localDateTime}Z`,
@@ -210,7 +539,8 @@ const readTemporalProperty = (
   event: ICAL.Component,
   propertyName: string,
   fallbackTimezone?: string,
-): TemporalValue => {
+  timezones: ReadonlyMap<string, CalendarTimezoneDefinition> = new Map(),
+): CalendarTemporalValue => {
   const property = event.getFirstProperty(propertyName);
   if (property === null) {
     throw createAppError({
@@ -230,7 +560,7 @@ const readTemporalProperty = (
     typeof propertyTimezone === "string" && propertyTimezone !== ""
       ? propertyTimezone
       : fallbackTimezone;
-  return temporalFromIcalTime(value, timezone);
+  return temporalFromIcalTime(value, timezone, timezones);
 };
 
 export type CreateCalendarEventOptions = {
@@ -276,6 +606,7 @@ export const createCalendarEvent = ({
 export const normalizeEventComponent = (
   master: ICAL.Component,
   fallbackTimezone?: string,
+  timezones: ReadonlyMap<string, CalendarTimezoneDefinition> = new Map(),
 ): NormalizedEvent => {
   const event = new ICAL.Event(master);
   const uid = componentString(master, "uid");
@@ -288,8 +619,8 @@ export const normalizeEventComponent = (
   return {
     uid,
     summary: componentString(master, "summary") ?? "",
-    start: readTemporalProperty(master, "dtstart", fallbackTimezone),
-    end: readTemporalProperty(master, "dtend", fallbackTimezone),
+    start: readTemporalProperty(master, "dtstart", fallbackTimezone, timezones),
+    end: readTemporalProperty(master, "dtend", fallbackTimezone, timezones),
     description: componentString(master, "description"),
     location: componentString(master, "location"),
     rrule: componentString(master, "rrule"),
@@ -304,8 +635,26 @@ export const normalizeCalendarEvent = (
   rawCalendar: string,
   fallbackTimezone?: string,
 ): NormalizedEvent => {
-  const calendar = parseCalendar(rawCalendar);
-  return normalizeEventComponent(findMasterEvent(calendar), fallbackTimezone);
+  const document = parseCalendarDocument(rawCalendar);
+  return normalizeEventComponent(
+    findMasterEvent(document.calendar),
+    fallbackTimezone,
+    document.timezones,
+  );
+};
+
+export const extractCalendarEventUid = (rawCalendar: string): string => {
+  const uid = componentString(
+    findMasterEvent(parseCalendar(rawCalendar)),
+    "uid",
+  );
+  if (uid === null || uid === "") {
+    throw createAppError({
+      code: "INVALID_ICALENDAR",
+      message: "The event does not contain a UID",
+    });
+  }
+  return uid;
 };
 
 export type PatchCalendarEventOptions = {

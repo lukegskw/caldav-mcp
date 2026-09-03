@@ -87,6 +87,7 @@ const createService = (): CalendarService => ({
   listEvents: () => Promise.resolve([firstEvent, secondEvent]),
   getEvent: () => Promise.resolve(firstEvent),
   findEvent: () => Promise.resolve(firstEvent),
+  findEventResourceId: () => Promise.resolve(firstEvent.resourceId),
   createEvent: () => Promise.resolve(firstEvent),
   updateEvent: () => Promise.resolve(firstEvent),
   deleteEvent: () => Promise.resolve({ deleted: true }),

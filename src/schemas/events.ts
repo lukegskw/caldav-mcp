@@ -4,6 +4,7 @@ import { alarmsInputSchema } from "./alarms.js";
 import {
   isTimedTemporalValue,
   temporalValueSchema,
+  type CalendarTemporalValue,
   type TemporalValue,
 } from "./time.js";
 
@@ -107,8 +108,8 @@ export type NormalizedAlarm = {
 export type NormalizedEvent = {
   readonly uid: string;
   readonly summary: string;
-  readonly start: TemporalValue;
-  readonly end: TemporalValue;
+  readonly start: CalendarTemporalValue;
+  readonly end: CalendarTemporalValue;
   readonly description: string | null;
   readonly location: string | null;
   readonly rrule: string | null;

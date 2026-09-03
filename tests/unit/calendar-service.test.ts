@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   createCalendarId,
+  createCalendarEvent,
   createCalendarService,
   createEventInputSchema,
   createResourceId,
@@ -132,6 +133,94 @@ describe("calendar service", () => {
       }),
     ).rejects.toSatisfy(
       (error: unknown) => isAppError(error) && error.code === "ETAG_CONFLICT",
+    );
+  });
+
+  it("finds a UID without normalizing unrelated event timestamps", async () => {
+    const unrelatedData = createCalendarEvent({
+      input,
+      provider: genericProviderPolicy,
+      createUuid: () => "unrelated",
+    }).replaceAll("Europe/Berlin", "Missing/Zone");
+    const targetData = createCalendarEvent({
+      input: { ...input, summary: "Target" },
+      provider: genericProviderPolicy,
+      createUuid: () => "target",
+    });
+    const unrelatedUrl = `${calendarUrl}unrelated.ics`;
+    const targetUrl = `${calendarUrl}target.ics`;
+    const unrelated: CalendarResource = {
+      calendarId,
+      resourceId: createResourceId(calendarUrl, unrelatedUrl),
+      url: unrelatedUrl,
+      etag: "etag-unrelated",
+      data: unrelatedData,
+    };
+    const target: CalendarResource = {
+      calendarId,
+      resourceId: createResourceId(calendarUrl, targetUrl),
+      url: targetUrl,
+      etag: "etag-target",
+      data: targetData,
+    };
+    const unavailable = (): Promise<never> =>
+      Promise.reject(new Error("Not available in this test"));
+    const gateway: CalDavGateway = {
+      listCalendars: () => Promise.resolve([]),
+      listResources: () => Promise.resolve([unrelated, target]),
+      getResource: (resourceId) =>
+        Promise.resolve(resourceId === target.resourceId ? target : unrelated),
+      createResource: unavailable,
+      updateResource: unavailable,
+      deleteResource: unavailable,
+    };
+    const service = createCalendarService(gateway, genericProviderPolicy);
+
+    await expect(
+      service.findEvent(calendarId, "target@caldav-mcp"),
+    ).resolves.toMatchObject({
+      summary: "Target",
+      resourceId: target.resourceId,
+    });
+    await expect(
+      service.findEventResourceId(calendarId, "target@caldav-mcp"),
+    ).resolves.toBe(target.resourceId);
+  });
+
+  it("preserves ambiguous UID detection with lightweight lookup", async () => {
+    const data = createCalendarEvent({
+      input,
+      provider: genericProviderPolicy,
+      createUuid: () => "duplicate",
+    });
+    const resources = ["one.ics", "two.ics"].map(
+      (filename): CalendarResource => {
+        const url = `${calendarUrl}${filename}`;
+        return {
+          calendarId,
+          resourceId: createResourceId(calendarUrl, url),
+          url,
+          etag: null,
+          data,
+        };
+      },
+    );
+    const unavailable = (): Promise<never> =>
+      Promise.reject(new Error("Not available in this test"));
+    const gateway: CalDavGateway = {
+      listCalendars: () => Promise.resolve([]),
+      listResources: () => Promise.resolve(resources),
+      getResource: unavailable,
+      createResource: unavailable,
+      updateResource: unavailable,
+      deleteResource: unavailable,
+    };
+    const service = createCalendarService(gateway, genericProviderPolicy);
+
+    await expect(
+      service.findEventResourceId(calendarId, "duplicate@caldav-mcp"),
+    ).rejects.toSatisfy(
+      (error: unknown) => isAppError(error) && error.code === "AMBIGUOUS_EVENT",
     );
   });
 

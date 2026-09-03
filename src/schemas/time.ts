@@ -106,10 +106,35 @@ export const temporalValueSchema = z.union([
   allDayTemporalValueSchema,
 ]);
 
+export const calendarTimedTemporalValueSchema = z
+  .object({
+    date_time: z
+      .string()
+      .regex(
+        dateTimePattern,
+        "Expected ISO 8601 with seconds and an explicit offset or Z",
+      )
+      .refine((value) => !Number.isNaN(Date.parse(value)), "Invalid instant"),
+    timezone: z.string().min(1).max(4_096),
+  })
+  .strict();
+
+export const calendarTemporalValueSchema = z.union([
+  calendarTimedTemporalValueSchema,
+  allDayTemporalValueSchema,
+]);
+
 export type TimedTemporalValue = z.output<typeof timedTemporalValueSchema>;
 export type AllDayTemporalValue = z.output<typeof allDayTemporalValueSchema>;
 export type TemporalValue = z.output<typeof temporalValueSchema>;
+export type CalendarTimedTemporalValue = z.output<
+  typeof calendarTimedTemporalValueSchema
+>;
+export type CalendarTemporalValue = z.output<
+  typeof calendarTemporalValueSchema
+>;
 
 export const isTimedTemporalValue = (
-  value: TemporalValue,
-): value is TimedTemporalValue => "date_time" in value;
+  value: TemporalValue | CalendarTemporalValue,
+): value is TimedTemporalValue | CalendarTimedTemporalValue =>
+  "date_time" in value;
