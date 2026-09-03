@@ -119,7 +119,35 @@ export type CalendarDocument = {
 
 export type CalendarTimezoneDefinition = {
   readonly timezone: ICAL.Timezone;
-  readonly truncatedSubminuteOffsets: ReadonlySet<number>;
+  readonly provenance: CalendarTimezoneProvenance;
+};
+
+type CalendarTimezoneObservance = {
+  readonly component: ICAL.Component;
+  readonly hasSubminuteOffsetTo: boolean;
+};
+
+type IcalTimezoneTransition = {
+  readonly year: number;
+  readonly month: number;
+  readonly day: number;
+  readonly hour: number;
+  readonly minute: number;
+  readonly second: number;
+  readonly utcOffset: number;
+  readonly prevUtcOffset: number;
+  readonly is_daylight: boolean;
+};
+
+type CalendarTimezoneTransition = IcalTimezoneTransition & {
+  readonly hasSubminuteOffsetTo: boolean;
+};
+
+type CalendarTimezoneProvenance = {
+  readonly timezone: ICAL.Timezone;
+  readonly observances: readonly CalendarTimezoneObservance[];
+  readonly changes: CalendarTimezoneTransition[];
+  expandedUntilYear: number;
 };
 
 const invalidCalendarTimezone = (cause?: unknown): Error =>
@@ -129,11 +157,18 @@ const invalidCalendarTimezone = (cause?: unknown): Error =>
     ...(cause === undefined ? {} : { cause }),
   });
 
+const timezoneObservances = (
+  component: ICAL.Component,
+): readonly ICAL.Component[] =>
+  component
+    .getAllSubcomponents()
+    .filter(
+      (subcomponent) =>
+        subcomponent.name === "standard" || subcomponent.name === "daylight",
+    );
+
 const validateTimezoneComponent = (component: ICAL.Component): void => {
-  const observances = [
-    ...component.getAllSubcomponents("standard"),
-    ...component.getAllSubcomponents("daylight"),
-  ];
+  const observances = timezoneObservances(component);
   if (observances.length === 0) {
     throw invalidCalendarTimezone();
   }
@@ -148,44 +183,52 @@ const validateTimezoneComponent = (component: ICAL.Component): void => {
   }
 };
 
-const truncatedSubminuteOffset = (value: unknown): number | null => {
+const hasSubminuteOffset = (value: unknown): boolean => {
   if (typeof value !== "string") {
-    return null;
+    return false;
   }
   const match = /^([+-])(\d{2}):(\d{2}):(\d{2})$/.exec(value);
-  if (match === null || match[4] === "00") {
-    return null;
+  if (match === null) {
+    return false;
   }
   const hours = Number(match[2]);
   const minutes = Number(match[3]);
-  if (hours > 23 || minutes > 59) {
+  const seconds = Number(match[4]);
+  if (hours > 23 || minutes > 59 || seconds > 59) {
     throw invalidCalendarTimezone();
   }
-  const sign = match[1] === "+" ? 1 : -1;
-  return sign * (hours * 60 + minutes) * 60;
+  return seconds !== 0;
 };
 
 const timezoneDefinition = (
   component: ICAL.Component,
   tzid: string,
 ): CalendarTimezoneDefinition => {
-  const truncatedSubminuteOffsets = new Set<number>();
-  const observances = [
-    ...component.getAllSubcomponents("standard"),
-    ...component.getAllSubcomponents("daylight"),
-  ];
-  for (const observance of observances) {
-    for (const propertyName of ["tzoffsetfrom", "tzoffsetto"]) {
-      const property = observance.getFirstProperty(propertyName);
-      const offset = truncatedSubminuteOffset(property?.jCal[3]);
-      if (offset !== null) {
-        truncatedSubminuteOffsets.add(offset);
-      }
-    }
-  }
+  // Expansion can normalize a UTC RRULE UNTIL in place, so provenance needs
+  // an isolated component rather than sharing mutable recurrence state.
+  const provenanceComponent = ICAL.Component.fromString(component.toString());
+  const observances = timezoneObservances(provenanceComponent).map(
+    (observance) => ({
+      component: observance,
+      hasSubminuteOffsetTo: hasSubminuteOffset(
+        observance.getFirstProperty("tzoffsetto")?.jCal[3],
+      ),
+    }),
+  );
+  const provenanceTimezone = new ICAL.Timezone({
+    component: provenanceComponent,
+    tzid,
+  });
+  const changes: CalendarTimezoneTransition[] = [];
+  provenanceTimezone.changes = changes;
   return {
     timezone: new ICAL.Timezone({ component, tzid }),
-    truncatedSubminuteOffsets,
+    provenance: {
+      timezone: provenanceTimezone,
+      observances,
+      changes,
+      expandedUntilYear: 0,
+    },
   };
 };
 
@@ -280,6 +323,135 @@ const offsetString = (offsetMinutes: number): string => {
   return `${sign}${pad(Math.floor(absolute / 60))}:${pad(absolute % 60)}`;
 };
 
+const ensureProvenanceCoverage = (
+  provenance: CalendarTimezoneProvenance,
+  year: number,
+): void => {
+  if (provenance.changes.length > 0 && provenance.expandedUntilYear >= year) {
+    return;
+  }
+  const minimumExpansionYear =
+    ICAL.Timezone._minimumExpansionYear === -1
+      ? ICAL.Time.now().year
+      : ICAL.Timezone._minimumExpansionYear;
+  const changesEndYear =
+    Math.max(year, minimumExpansionYear) + ICAL.Timezone.EXTRA_COVERAGE;
+  for (const observance of provenance.observances) {
+    const expanded: IcalTimezoneTransition[] = [];
+    provenance.timezone._expandComponent(
+      observance.component,
+      changesEndYear,
+      expanded,
+    );
+    provenance.changes.push(
+      ...expanded.map((transition) => ({
+        ...transition,
+        hasSubminuteOffsetTo: observance.hasSubminuteOffsetTo,
+      })),
+    );
+  }
+  provenance.changes.sort((first, second) =>
+    ICAL.Timezone._compare_change_fn(first, second),
+  );
+  provenance.expandedUntilYear = changesEndYear;
+};
+
+const adjustedTimezoneTransition = (
+  transition: CalendarTimezoneTransition,
+  offsetSeconds: number,
+): CalendarTimezoneTransition => {
+  const adjusted = ICAL.Time.fromData({
+    year: transition.year,
+    month: transition.month,
+    day: transition.day,
+    hour: transition.hour,
+    minute: transition.minute,
+    second: transition.second,
+    isDate: false,
+  });
+  adjusted.adjust(0, 0, 0, offsetSeconds);
+  return {
+    ...transition,
+    year: adjusted.year,
+    month: adjusted.month,
+    day: adjusted.day,
+    hour: adjusted.hour,
+    minute: adjusted.minute,
+    second: adjusted.second,
+  };
+};
+
+const activeTimezoneTransition = (
+  value: ICAL.Time,
+  provenance: CalendarTimezoneProvenance,
+): CalendarTimezoneTransition | null => {
+  ensureProvenanceCoverage(provenance, value.year);
+  const changes = provenance.changes;
+  if (changes.length === 0) {
+    return null;
+  }
+  const localTime = {
+    year: value.year,
+    month: value.month,
+    day: value.day,
+    hour: value.hour,
+    minute: value.minute,
+    second: value.second,
+  };
+  let changeIndex = provenance.timezone._findNearbyChange(localTime);
+  let activeIndex = -1;
+  let step = 1;
+  for (;;) {
+    const candidate = changes[changeIndex];
+    if (candidate === undefined) {
+      return null;
+    }
+    const adjustedCandidate = adjustedTimezoneTransition(
+      candidate,
+      candidate.utcOffset < candidate.prevUtcOffset
+        ? candidate.utcOffset
+        : candidate.prevUtcOffset,
+    );
+    if (ICAL.Timezone._compare_change_fn(localTime, adjustedCandidate) >= 0) {
+      activeIndex = changeIndex;
+    } else {
+      step = -1;
+    }
+    if (step === -1 && activeIndex !== -1) {
+      break;
+    }
+    changeIndex += step;
+    if (changeIndex < 0) {
+      return null;
+    }
+    if (changeIndex >= changes.length) {
+      break;
+    }
+  }
+  let active = changes[activeIndex];
+  if (active === undefined) {
+    return null;
+  }
+  if (active.utcOffset < active.prevUtcOffset && activeIndex > 0) {
+    const adjustedActive = adjustedTimezoneTransition(
+      active,
+      active.prevUtcOffset,
+    );
+    if (ICAL.Timezone._compare_change_fn(localTime, adjustedActive) < 0) {
+      const previous = changes[activeIndex - 1];
+      const wantDaylight = false;
+      if (
+        previous !== undefined &&
+        active.is_daylight !== wantDaylight &&
+        previous.is_daylight === wantDaylight
+      ) {
+        active = previous;
+      }
+    }
+  }
+  return active;
+};
+
 const embeddedZonedDateTime = (
   value: ICAL.Time,
   localDateTime: string,
@@ -287,11 +459,17 @@ const embeddedZonedDateTime = (
 ): string => {
   try {
     const offsetSeconds = definition.timezone.utcOffset(value);
+    const activeTransition = activeTimezoneTransition(
+      value,
+      definition.provenance,
+    );
     if (
       !Number.isInteger(offsetSeconds) ||
       offsetSeconds % 60 !== 0 ||
       Math.abs(offsetSeconds) >= 24 * 60 * 60 ||
-      definition.truncatedSubminuteOffsets.has(offsetSeconds)
+      activeTransition === null ||
+      activeTransition.utcOffset !== offsetSeconds ||
+      activeTransition.hasSubminuteOffsetTo
     ) {
       throw invalidCalendarTimezone();
     }

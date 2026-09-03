@@ -144,7 +144,7 @@ describe("custom VTIMEZONE support", () => {
       "TZID:Historic/Zone",
       "BEGIN:STANDARD",
       "DTSTART:18930401T000000",
-      "TZOFFSETFROM:+005328",
+      "TZOFFSETFROM:+010030",
       "TZOFFSETTO:+0100",
       "END:STANDARD",
       "BEGIN:STANDARD",
@@ -166,6 +166,35 @@ describe("custom VTIMEZONE support", () => {
       date_time: "2035-01-04T10:00:00+01:00",
       timezone: "Historic/Zone",
     });
+  });
+
+  it("rejects an active historic sub-minute offset despite a later exact collision", () => {
+    const timezone = [
+      "BEGIN:VTIMEZONE",
+      "TZID:Historic/Active-Seconds",
+      "BEGIN:STANDARD",
+      "DTSTART:18930401T000000",
+      "TZOFFSETFROM:+0100",
+      "TZOFFSETTO:+010030",
+      "END:STANDARD",
+      "BEGIN:STANDARD",
+      "DTSTART:19800101T000000",
+      "TZOFFSETFROM:+010030",
+      "TZOFFSETTO:+0100",
+      "END:STANDARD",
+      "END:VTIMEZONE",
+    ].join("\r\n");
+
+    expectInvalidTimezone(
+      calendar(
+        [timezone],
+        timedEvent(
+          "Historic/Active-Seconds",
+          "19500104T100000",
+          "19500104T110000",
+        ),
+      ),
+    );
   });
 
   it("keeps same-named timezone definitions isolated between resources", () => {
