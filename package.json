@@ -47,6 +47,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint .",
+    "release:prepare": "node scripts/prepare-release.mjs",
     "start": "node dist/main.js",
     "test": "vitest run",
     "test:integration": "vitest run tests/integration",

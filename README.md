@@ -562,8 +562,9 @@ patches. TypeScript changes must continue to satisfy the rules in
 Releases are version-driven and automated from `main` so that a partial registry outage
 can be retried without publishing a second npm version.
 
-1. Update the version in `package.json` and all three version references in
-   `server.json` (top-level, npm package, and OCI image tag).
+1. Prepare the new version with `pnpm release:prepare X.Y.Z`. This updates
+   `package.json` and all three version references in `server.json` (top-level,
+   npm package, and OCI image tag).
 2. Run the verification suite, including `pnpm test:package`.
 3. Commit and push the release changes to `main`.
 4. The release workflow validates the commit and creates the matching `vX.Y.Z` tag
