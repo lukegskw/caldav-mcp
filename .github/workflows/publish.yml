@@ -148,12 +148,6 @@ jobs:
       - name: Validate distribution metadata
         run: pnpm test:distribution
 
-      - name: Build Claude Desktop bundle
-        run: pnpm build:mcpb
-
-      - name: Smoke-test Claude Desktop bundle
-        run: pnpm test:mcpb
-
       - name: Install mcp-publisher
         run: |
           curl --fail --silent --show-error --location \
@@ -272,15 +266,10 @@ jobs:
         if: steps.mcp_registry.outputs.exists != 'true'
         run: ./mcp-publisher publish
 
-      - name: Create or update GitHub release
+      - name: Create GitHub release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ needs.release-check.outputs.release_tag }}
-          RELEASE_VERSION: ${{ needs.release-check.outputs.release_version }}
         run: |
           gh release view "$RELEASE_TAG" > /dev/null 2>&1 \
             || gh release create "$RELEASE_TAG" --verify-tag --generate-notes --title "$RELEASE_TAG"
-          gh release upload "$RELEASE_TAG" \
-            "artifacts/caldav-mcp-v${RELEASE_VERSION}.mcpb" \
-            "artifacts/caldav-mcp.mcpb" \
-            --clobber

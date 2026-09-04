@@ -1,6 +1,6 @@
 {
   "name": "@lukegskw/caldav-mcp",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "license": "MIT",
   "bin": {
     "caldav-mcp": "dist/main.js"
@@ -44,7 +44,6 @@
   "packageManager": "pnpm@10.25.0",
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
-    "build:mcpb": "node scripts/build-mcpb.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint .",
@@ -53,7 +52,6 @@
     "test": "vitest run",
     "test:integration": "vitest run tests/integration",
     "test:distribution": "node scripts/check-distribution.mjs",
-    "test:mcpb": "node scripts/check-mcpb.mjs",
     "test:package": "node scripts/check-package.mjs",
     "test:unit": "vitest run tests/unit",
     "test:watch": "vitest",
@@ -69,7 +67,6 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@anthropic-ai/mcpb": "2.1.2",
     "@eslint/js": "^10.0.1",
     "@modelcontextprotocol/client": "^2.0.0",
     "@types/express": "^5.0.6",

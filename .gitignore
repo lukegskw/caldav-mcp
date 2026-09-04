@@ -4,7 +4,6 @@
 !.env.example
 coverage/
 dist/
-artifacts/
 node_modules/
 *.ics
 *.log

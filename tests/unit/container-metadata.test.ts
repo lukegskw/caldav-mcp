@@ -56,9 +56,6 @@ describe("container publication metadata", () => {
     expect(workflow).toContain("should_publish");
     expect(workflow).toContain("pnpm test:package");
     expect(workflow).toContain("pnpm test:distribution");
-    expect(workflow).toContain("pnpm build:mcpb");
-    expect(workflow).toContain("pnpm test:mcpb");
-    expect(workflow).toContain("artifacts/caldav-mcp.mcpb");
     expect(workflow).toContain("mcp-publisher validate");
     expect(workflow).toContain("npm publish --provenance");
     expect(workflow).toContain("mcp-publisher publish");

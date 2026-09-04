@@ -343,13 +343,7 @@ Secrets must be supplied through the deployment platform or environment. Never c
 
 ## MCP client setup
 
-### Managed client installations
-
-These native manifests avoid editing each client's JSON configuration for every CalDAV
-MCP release. Gemini, Claude Code, and Codex launch the newest npm release; Claude
-Desktop uses the bundle attached to each GitHub Release.
-
-#### Gemini CLI extension
+### Gemini CLI extension
 
 Install directly from GitHub and enable automatic extension updates:
 
@@ -359,41 +353,6 @@ gemini extensions install https://github.com/lukegskw/caldav-mcp --auto-update
 
 Gemini prompts for the username and stores the app-specific password as a sensitive
 setting. The public extension gallery discovers tagged releases from this repository.
-
-#### Claude Code plugin
-
-Add this repository as a marketplace and install the plugin:
-
-```sh
-claude plugin marketplace add lukegskw/caldav-mcp
-claude plugin install caldav-mcp@lukegskw
-```
-
-Claude Code prompts for the required plugin settings. They can later be changed with
-`/plugin configure caldav-mcp@lukegskw`. This plugin requires a current Claude Code
-release with `userConfig` support (2.1.207 or newer).
-
-#### Codex plugin
-
-Add the repository marketplace and install the plugin:
-
-```sh
-codex plugin marketplace add lukegskw/caldav-mcp
-codex plugin add caldav-mcp@lukegskw
-```
-
-Set `CALDAV_USERNAME` and `CALDAV_PASSWORD` in the environment that launches Codex. The
-plugin forwards those variables to the MCP server without storing their values in the
-repository.
-
-#### Claude Desktop bundle
-
-Download the latest
-[`caldav-mcp.mcpb`](https://github.com/lukegskw/caldav-mcp/releases/latest/download/caldav-mcp.mcpb)
-and open it with Claude Desktop. The bundle contains the compiled server and production
-dependencies, so Node package downloads are not required at runtime. Until the bundle
-is accepted into Claude's official directory, installing a newer bundle is a manual
-client-side action.
 
 ### Manual configuration
 
@@ -570,8 +529,6 @@ pnpm test:integration
 pnpm build
 pnpm test:package
 pnpm test:distribution
-pnpm build:mcpb
-pnpm test:mcpb
 ```
 
 Finally, connect with an MCP client and confirm that all six tools are listed. Before a
@@ -622,19 +579,16 @@ Releases are version-driven and automated from `main` so that a partial registry
 can be retried without publishing a second npm version.
 
 1. Prepare the new version with `pnpm release:prepare X.Y.Z`. This synchronizes the npm,
-   MCP Registry, Gemini, Claude Code, Codex, and Claude Desktop metadata.
-2. Run the verification suite, including `pnpm test:distribution`, `pnpm build:mcpb`,
-   and `pnpm test:mcpb`.
+   MCP Registry, and Gemini metadata.
+2. Run the verification suite, including `pnpm test:distribution`.
 3. Commit and push the release changes to `main`.
 4. The release workflow validates the commit and creates the matching `vX.Y.Z` tag
    automatically before publishing.
 
-The release workflow validates the versions, tests the packed npm artifact, publishes
-the immutable container tag, npm package, MCP Registry entry, and GitHub release, then
-attaches stable and versioned Claude Desktop bundles. Downstream galleries can discover
-the repository's tag or registry record without another per-release edit. A rerun skips
-matching artifacts that already exist and resumes the missing steps. See the complete
-[distribution matrix](docs/distribution.md).
+The release workflow validates the versions, tests the packed npm artifact, and
+publishes the immutable container tag, npm package, MCP Registry entry, and GitHub
+release. Gemini can discover the tagged extension without another per-release edit. A
+rerun skips matching artifacts that already exist and resumes the missing steps.
 
 ## License
 
