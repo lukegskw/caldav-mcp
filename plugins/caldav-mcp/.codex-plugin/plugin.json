@@ -1,6 +1,6 @@
 {
   "name": "caldav-mcp",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Manage iCloud and CalDAV calendars with native multi-alarm support.",
   "author": {
     "name": "Lucas G.",

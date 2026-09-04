@@ -2,7 +2,7 @@
   "manifest_version": "0.3",
   "name": "caldav-mcp",
   "display_name": "CalDAV MCP",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Manage iCloud and CalDAV calendars with native multi-alarm support.",
   "long_description": "List calendars and safely create, inspect, update, list, or delete calendar events, including recurring events and multiple VALARM reminders.",
   "author": {

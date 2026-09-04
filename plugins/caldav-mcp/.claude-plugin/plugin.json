@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "caldav-mcp",
   "displayName": "CalDAV MCP",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Manage iCloud and CalDAV calendars with native multi-alarm support.",
   "author": {
     "name": "Lucas G.",
