@@ -1,0 +1,29 @@
+{
+  "name": "caldav-mcp",
+  "version": "0.1.4",
+  "description": "Manage iCloud and CalDAV calendars with native multi-alarm support.",
+  "author": {
+    "name": "Lucas G.",
+    "url": "https://github.com/lukegskw"
+  },
+  "homepage": "https://github.com/lukegskw/caldav-mcp#readme",
+  "repository": "https://github.com/lukegskw/caldav-mcp",
+  "license": "MIT",
+  "keywords": ["calendar", "caldav", "icloud", "mcp", "valarm"],
+  "interface": {
+    "displayName": "CalDAV MCP",
+    "shortDescription": "Manage iCloud and CalDAV calendars.",
+    "longDescription": "List calendars and safely create, inspect, update, list, or delete calendar events, including recurring events and multiple VALARM reminders.",
+    "developerName": "Lucas G.",
+    "category": "Productivity",
+    "capabilities": ["Read", "Write"],
+    "websiteURL": "https://github.com/lukegskw/caldav-mcp",
+    "privacyPolicyURL": "https://github.com/lukegskw/caldav-mcp/blob/main/PRIVACY.md",
+    "defaultPrompt": [
+      "List my calendars.",
+      "Show my events for this week.",
+      "Create a calendar event with two reminders."
+    ]
+  },
+  "mcpServers": "./.mcp.json"
+}

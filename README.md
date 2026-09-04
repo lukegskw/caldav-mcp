@@ -29,7 +29,7 @@ local `stdio` server to a JSON-configured MCP client such as Claude Desktop or G
   "mcpServers": {
     "icloud-calendar": {
       "command": "npx",
-      "args": ["--yes", "@lukegskw/caldav-mcp@0.1.4"],
+      "args": ["--yes", "@lukegskw/caldav-mcp@latest"],
       "env": {
         "CALDAV_USERNAME": "user@example.com",
         "CALDAV_PASSWORD": "xxxx-xxxx-xxxx-xxxx"
@@ -211,17 +211,19 @@ Deleting a single expanded occurrence is not supported in the current release.
 
 ### npm / npx
 
-No global install or repository clone is required. MCP clients can launch the pinned
-package directly:
+No global install or repository clone is required. MCP clients can launch the latest
+published package directly:
 
 ```sh
 CALDAV_USERNAME='user@example.com' \
 CALDAV_PASSWORD='xxxx-xxxx-xxxx-xxxx' \
-npx --yes @lukegskw/caldav-mcp@0.1.4
+npx --yes @lukegskw/caldav-mcp@latest
 ```
 
 The command waits for MCP messages on stdin and normally prints nothing to stdout. In
 practice, add it to the client configuration as shown in [MCP client setup](#mcp-client-setup).
+For reproducible environments, replace `latest` with an exact published version such as
+`X.Y.Z`.
 
 ### Docker Compose
 
@@ -341,6 +343,60 @@ Secrets must be supplied through the deployment platform or environment. Never c
 
 ## MCP client setup
 
+### Managed client installations
+
+These native manifests avoid editing each client's JSON configuration for every CalDAV
+MCP release. Gemini, Claude Code, and Codex launch the newest npm release; Claude
+Desktop uses the bundle attached to each GitHub Release.
+
+#### Gemini CLI extension
+
+Install directly from GitHub and enable automatic extension updates:
+
+```sh
+gemini extensions install https://github.com/lukegskw/caldav-mcp --auto-update
+```
+
+Gemini prompts for the username and stores the app-specific password as a sensitive
+setting. The public extension gallery discovers tagged releases from this repository.
+
+#### Claude Code plugin
+
+Add this repository as a marketplace and install the plugin:
+
+```sh
+claude plugin marketplace add lukegskw/caldav-mcp
+claude plugin install caldav-mcp@lukegskw
+```
+
+Claude Code prompts for the required plugin settings. They can later be changed with
+`/plugin configure caldav-mcp@lukegskw`. This plugin requires a current Claude Code
+release with `userConfig` support (2.1.207 or newer).
+
+#### Codex plugin
+
+Add the repository marketplace and install the plugin:
+
+```sh
+codex plugin marketplace add lukegskw/caldav-mcp
+codex plugin add caldav-mcp@lukegskw
+```
+
+Set `CALDAV_USERNAME` and `CALDAV_PASSWORD` in the environment that launches Codex. The
+plugin forwards those variables to the MCP server without storing their values in the
+repository.
+
+#### Claude Desktop bundle
+
+Download the latest
+[`caldav-mcp.mcpb`](https://github.com/lukegskw/caldav-mcp/releases/latest/download/caldav-mcp.mcpb)
+and open it with Claude Desktop. The bundle contains the compiled server and production
+dependencies, so Node package downloads are not required at runtime. Until the bundle
+is accepted into Claude's official directory, installing a newer bundle is a manual
+client-side action.
+
+### Manual configuration
+
 For any MCP client that accepts Streamable HTTP server definitions, configure the URL:
 
 ```yaml
@@ -357,17 +413,17 @@ mcp_servers:
     url: http://caldav-mcp:8100/mcp
 ```
 
-For clients that launch local `stdio` servers, prefer the versioned npm command from
+For clients that launch local `stdio` servers, prefer the npm command from
 [Quick start](#quick-start). If a desktop client cannot find `npx`, use the absolute
 path reported by `command -v npx` on macOS/Linux or `where npx` on Windows.
 
-### Claude Desktop
+#### Claude Desktop
 
 Add the [Quick start](#quick-start) JSON under `mcpServers` in
 `claude_desktop_config.json`, then completely restart Claude Desktop. Open the file
 through **Settings -> Developer -> Edit Config** instead of assuming its location.
 
-### Claude Code
+#### Claude Code
 
 [Claude Code](https://code.claude.com/docs/en/mcp) can add the same `stdio` server at
 user scope:
@@ -376,13 +432,13 @@ user scope:
 claude mcp add --transport stdio --scope user \
   --env CALDAV_USERNAME=user@example.com \
   --env CALDAV_PASSWORD=xxxx-xxxx-xxxx-xxxx \
-  icloud-calendar -- npx --yes @lukegskw/caldav-mcp@0.1.4
+  icloud-calendar -- npx --yes @lukegskw/caldav-mcp@latest
 ```
 
 This command places the values in Claude's MCP configuration. Avoid running it where
 shell history is shared or retained insecurely.
 
-### Codex
+#### Codex
 
 Codex can add the server to its shared CLI and IDE configuration:
 
@@ -390,14 +446,14 @@ Codex can add the server to its shared CLI and IDE configuration:
 codex mcp add icloud-calendar \
   --env CALDAV_USERNAME=user@example.com \
   --env CALDAV_PASSWORD=xxxx-xxxx-xxxx-xxxx \
-  -- npx --yes @lukegskw/caldav-mcp@0.1.4
+  -- npx --yes @lukegskw/caldav-mcp@latest
 ```
 
 Run `codex mcp list` to verify it. For finer control, use the
 [official Codex MCP configuration](https://developers.openai.com/codex/mcp/) in
 `~/.codex/config.toml` or a project-scoped `.codex/config.toml`.
 
-### Gemini CLI
+#### Gemini CLI
 
 Following the [Gemini CLI MCP configuration](https://geminicli.com/docs/tools/mcp-server/),
 add the server under `mcpServers` in `~/.gemini/settings.json` (user scope) or the
@@ -408,7 +464,7 @@ project's `.gemini/settings.json`:
   "mcpServers": {
     "icloud-calendar": {
       "command": "npx",
-      "args": ["--yes", "@lukegskw/caldav-mcp@0.1.4"],
+      "args": ["--yes", "@lukegskw/caldav-mcp@latest"],
       "env": {
         "CALDAV_USERNAME": "user@example.com",
         "CALDAV_PASSWORD": "xxxx-xxxx-xxxx-xxxx"
@@ -418,7 +474,7 @@ project's `.gemini/settings.json`:
 }
 ```
 
-### Claude Desktop (Docker, stdio alternative)
+#### Claude Desktop (Docker, stdio alternative)
 
 Claude Desktop launches local `stdio` servers as subprocesses. Running the published
 container this way keeps the app-specific password on the client machine and opens no
@@ -470,7 +526,7 @@ docker images --digests ghcr.io/lukegskw/caldav-mcp
 
 Restart Claude Desktop completely after editing the configuration file.
 
-#### Windows
+##### Windows
 
 When Claude Desktop is installed from the Microsoft Store, Windows redirects
 `%APPDATA%\Claude` into the package container and the file lives at:
@@ -513,6 +569,9 @@ pnpm test:unit
 pnpm test:integration
 pnpm build
 pnpm test:package
+pnpm test:distribution
+pnpm build:mcpb
+pnpm test:mcpb
 ```
 
 Finally, connect with an MCP client and confirm that all six tools are listed. Before a
@@ -562,17 +621,20 @@ patches. TypeScript changes must continue to satisfy the rules in
 Releases are version-driven and automated from `main` so that a partial registry outage
 can be retried without publishing a second npm version.
 
-1. Prepare the new version with `pnpm release:prepare X.Y.Z`. This updates
-   `package.json` and all three version references in `server.json` (top-level,
-   npm package, and OCI image tag).
-2. Run the verification suite, including `pnpm test:package`.
+1. Prepare the new version with `pnpm release:prepare X.Y.Z`. This synchronizes the npm,
+   MCP Registry, Gemini, Claude Code, Codex, and Claude Desktop metadata.
+2. Run the verification suite, including `pnpm test:distribution`, `pnpm build:mcpb`,
+   and `pnpm test:mcpb`.
 3. Commit and push the release changes to `main`.
 4. The release workflow validates the commit and creates the matching `vX.Y.Z` tag
    automatically before publishing.
 
 The release workflow validates the versions, tests the packed npm artifact, publishes
-the immutable container tag, npm package, MCP Registry entry, and GitHub release. A
-rerun skips matching artifacts that already exist and resumes the missing steps.
+the immutable container tag, npm package, MCP Registry entry, and GitHub release, then
+attaches stable and versioned Claude Desktop bundles. Downstream galleries can discover
+the repository's tag or registry record without another per-release edit. A rerun skips
+matching artifacts that already exist and resumes the missing steps. See the complete
+[distribution matrix](docs/distribution.md).
 
 ## License
 

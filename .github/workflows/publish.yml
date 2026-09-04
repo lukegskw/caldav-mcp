@@ -35,6 +35,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          node scripts/check-distribution.mjs
           PACKAGE_VERSION=$(jq -r '.version' package.json)
           SERVER_VERSION=$(jq -r '.version' server.json)
           NPM_PACKAGE_VERSION=$(jq -r '.packages[] | select(.registryType == "npm") | .version' server.json)
@@ -143,6 +144,15 @@ jobs:
 
       - name: Smoke-test npm package
         run: pnpm test:package
+
+      - name: Validate distribution metadata
+        run: pnpm test:distribution
+
+      - name: Build Claude Desktop bundle
+        run: pnpm build:mcpb
+
+      - name: Smoke-test Claude Desktop bundle
+        run: pnpm test:mcpb
 
       - name: Install mcp-publisher
         run: |
@@ -262,10 +272,15 @@ jobs:
         if: steps.mcp_registry.outputs.exists != 'true'
         run: ./mcp-publisher publish
 
-      - name: Create GitHub release
+      - name: Create or update GitHub release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ needs.release-check.outputs.release_tag }}
+          RELEASE_VERSION: ${{ needs.release-check.outputs.release_version }}
         run: |
           gh release view "$RELEASE_TAG" > /dev/null 2>&1 \
             || gh release create "$RELEASE_TAG" --verify-tag --generate-notes --title "$RELEASE_TAG"
+          gh release upload "$RELEASE_TAG" \
+            "artifacts/caldav-mcp-v${RELEASE_VERSION}.mcpb" \
+            "artifacts/caldav-mcp.mcpb" \
+            --clobber

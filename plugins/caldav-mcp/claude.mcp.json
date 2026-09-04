@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "icloud-calendar": {
+      "command": "npx",
+      "args": ["--yes", "@lukegskw/caldav-mcp@latest"],
+      "env": {
+        "CALDAV_USERNAME": "${user_config.caldav_username}",
+        "CALDAV_PASSWORD": "${user_config.caldav_password}"
+      }
+    }
+  }
+}

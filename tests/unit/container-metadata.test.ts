@@ -50,11 +50,15 @@ describe("container publication metadata", () => {
       `"identifier": "ghcr.io/lukegskw/caldav-mcp:${SERVER_VERSION}"`,
     );
     expect(serverJson).not.toContain('"name": "CALDAV_URL"');
-    expect(readme).toContain(`"@lukegskw/caldav-mcp@${SERVER_VERSION}"`);
+    expect(readme).toContain('"@lukegskw/caldav-mcp@latest"');
     expect(workflow).toContain("branches: [main]");
     expect(workflow).toContain("Create release tag");
     expect(workflow).toContain("should_publish");
     expect(workflow).toContain("pnpm test:package");
+    expect(workflow).toContain("pnpm test:distribution");
+    expect(workflow).toContain("pnpm build:mcpb");
+    expect(workflow).toContain("pnpm test:mcpb");
+    expect(workflow).toContain("artifacts/caldav-mcp.mcpb");
     expect(workflow).toContain("mcp-publisher validate");
     expect(workflow).toContain("npm publish --provenance");
     expect(workflow).toContain("mcp-publisher publish");

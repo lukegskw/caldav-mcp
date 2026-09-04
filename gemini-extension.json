@@ -1,0 +1,28 @@
+{
+  "name": "caldav-mcp",
+  "version": "0.1.4",
+  "description": "Manage iCloud and CalDAV calendars with native multi-VALARM support from Gemini CLI.",
+  "mcpServers": {
+    "icloud-calendar": {
+      "command": "npx",
+      "args": ["--yes", "@lukegskw/caldav-mcp@latest"],
+      "env": {
+        "CALDAV_USERNAME": "${CALDAV_USERNAME}",
+        "CALDAV_PASSWORD": "${CALDAV_PASSWORD}"
+      }
+    }
+  },
+  "settings": [
+    {
+      "name": "iCloud username",
+      "description": "The Apple Account email address used for CalDAV.",
+      "envVar": "CALDAV_USERNAME"
+    },
+    {
+      "name": "App-specific password",
+      "description": "An Apple app-specific password, not the Apple Account password.",
+      "envVar": "CALDAV_PASSWORD",
+      "sensitive": true
+    }
+  ]
+}
