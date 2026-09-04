@@ -76,7 +76,8 @@ export const isDateTimeCompatibleWithTimezone = (
 export const calendarDateSchema = z
   .string()
   .regex(datePattern, "Expected a calendar date in YYYY-MM-DD format")
-  .refine(isValidCalendarDate, "Invalid calendar date");
+  .refine(isValidCalendarDate, "Invalid calendar date")
+  .describe("Calendar date in YYYY-MM-DD format.");
 
 export const timedTemporalValueSchema = z
   .object({
@@ -85,26 +86,37 @@ export const timedTemporalValueSchema = z
       .regex(
         dateTimePattern,
         "Expected ISO 8601 with seconds and an explicit offset or Z",
+      )
+      .describe(
+        "ISO 8601 date-time with seconds and an explicit UTC offset or Z.",
       ),
-    timezone: z.string().refine(isValidTimezone, "Invalid IANA timezone"),
+    timezone: z
+      .string()
+      .refine(isValidTimezone, "Invalid IANA timezone")
+      .describe(
+        "IANA timezone for the local event time; its offset must match date_time.",
+      ),
   })
   .strict()
   .refine(
     ({ date_time: dateTime, timezone }) =>
       isDateTimeCompatibleWithTimezone(dateTime, timezone),
     "The date_time offset does not match timezone",
+  )
+  .describe(
+    "A timed calendar value with an explicit offset and IANA timezone.",
   );
 
 export const allDayTemporalValueSchema = z
   .object({
     date: calendarDateSchema,
   })
-  .strict();
+  .strict()
+  .describe("An all-day calendar value.");
 
-export const temporalValueSchema = z.union([
-  timedTemporalValueSchema,
-  allDayTemporalValueSchema,
-]);
+export const temporalValueSchema = z
+  .union([timedTemporalValueSchema, allDayTemporalValueSchema])
+  .describe("A timed date-time or all-day calendar date.");
 
 export const calendarTimedTemporalValueSchema = z
   .object({
@@ -114,15 +126,22 @@ export const calendarTimedTemporalValueSchema = z
         dateTimePattern,
         "Expected ISO 8601 with seconds and an explicit offset or Z",
       )
-      .refine((value) => !Number.isNaN(Date.parse(value)), "Invalid instant"),
-    timezone: z.string().min(1).max(4_096),
+      .refine((value) => !Number.isNaN(Date.parse(value)), "Invalid instant")
+      .describe(
+        "Stored ISO 8601 date-time with seconds and an explicit UTC offset or Z.",
+      ),
+    timezone: z
+      .string()
+      .min(1)
+      .max(4_096)
+      .describe("IANA timezone associated with the stored date-time."),
   })
-  .strict();
+  .strict()
+  .describe("A stored timed calendar value.");
 
-export const calendarTemporalValueSchema = z.union([
-  calendarTimedTemporalValueSchema,
-  allDayTemporalValueSchema,
-]);
+export const calendarTemporalValueSchema = z
+  .union([calendarTimedTemporalValueSchema, allDayTemporalValueSchema])
+  .describe("A stored timed date-time or all-day calendar date.");
 
 export type TimedTemporalValue = z.output<typeof timedTemporalValueSchema>;
 export type AllDayTemporalValue = z.output<typeof allDayTemporalValueSchema>;

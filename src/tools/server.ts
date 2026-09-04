@@ -76,13 +76,23 @@ const resolveResourceId = async (
 };
 
 export const createMcpServer = (service: CalendarService): McpServer => {
-  const server = new McpServer({ name: "caldav-mcp", version: SERVER_VERSION });
+  const server = new McpServer(
+    { name: "caldav-mcp", version: SERVER_VERSION },
+    {
+      instructions:
+        "Manage events in one configured iCloud Calendar account. " +
+        "Call list_calendars before event operations to obtain an opaque calendar_id, and prefer resource_id when a previous result provides one. " +
+        "Create, update, and delete change the remote calendar; individual occurrences of a recurring series cannot be mutated. " +
+        "Use expected_etag on updates and deletions when available to avoid overwriting concurrent changes.",
+    },
+  );
 
   server.registerTool(
     "list_calendars",
     {
       title: "List calendars",
-      description: "List calendars available in the configured iCloud account.",
+      description:
+        "List calendars available in the configured iCloud account. Use this first to obtain the opaque calendar_id required by list_events and create_event; writable is a best-effort capability indicator.",
       inputSchema: listCalendarsInputSchema,
       outputSchema: listCalendarsOutputSchema,
       annotations: {
@@ -103,7 +113,7 @@ export const createMcpServer = (service: CalendarService): McpServer => {
     {
       title: "List calendar events",
       description:
-        "List and expand events in a semi-open time range of up to 366 days.",
+        "List events that overlap the start-inclusive, end-exclusive interval and expand recurring series into occurrences, across at most 366 days. Use list_calendars first to obtain calendar_id and use get_event instead for one known event. Continue with next_cursor and unchanged query filters when more results are available.",
       inputSchema: listEventsInputSchema,
       outputSchema: listEventsOutputSchema,
       annotations: {
@@ -134,7 +144,7 @@ export const createMcpServer = (service: CalendarService): McpServer => {
     {
       title: "Get calendar event",
       description:
-        "Read an event by opaque resource ID or by calendar ID and UID.",
+        "Read one event by resource_id, preferably from a previous result, or by the calendar_id and uid pair. Use list_events for range searches. Request raw iCalendar only for controlled diagnostics because it may contain sensitive calendar data.",
       inputSchema: getEventInputSchema,
       outputSchema: eventOutputSchema,
       annotations: {
@@ -163,7 +173,7 @@ export const createMcpServer = (service: CalendarService): McpServer => {
     {
       title: "Create calendar event",
       description:
-        "Create an iCloud calendar event with zero or more display alarms.",
+        "Create a new event in a writable iCloud calendar and return the stored representation; existing events are not changed. Use list_calendars first to obtain calendar_id, and use update_event when the event already exists. Timed values require matching offsets and timezones, all-day end dates are exclusive, and recurrence rules omit the RRULE: prefix.",
       inputSchema: createEventToolInputSchema,
       outputSchema: eventOutputSchema,
       annotations: {
@@ -182,7 +192,7 @@ export const createMcpServer = (service: CalendarService): McpServer => {
     {
       title: "Update calendar event",
       description:
-        "Patch an event or recurring series while preserving omitted fields.",
+        "Modify an existing event or entire recurring series; individual expanded occurrences are not supported. Target it by resource_id or by calendar_id with uid. Omitted patch fields are preserved, null clears nullable fields, an empty alarms array removes alarms, and expected_etag can prevent a stale write.",
       inputSchema: updateEventInputSchema,
       outputSchema: eventOutputSchema,
       annotations: {
@@ -210,7 +220,8 @@ export const createMcpServer = (service: CalendarService): McpServer => {
     "delete_event",
     {
       title: "Delete calendar event",
-      description: "Delete an event or complete recurring series.",
+      description:
+        "Permanently delete an event or entire recurring series; individual expanded occurrences are not supported. Target it by resource_id or by calendar_id with uid, and supply expected_etag when available to prevent deleting a concurrently changed event.",
       inputSchema: deleteEventInputSchema,
       outputSchema: deleteEventOutputSchema,
       annotations: {

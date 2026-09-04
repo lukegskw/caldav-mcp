@@ -1,5 +1,6 @@
 import { Client, InMemoryTransport } from "@modelcontextprotocol/client";
 import { afterEach, describe, expect, it } from "vitest";
+import { z } from "zod";
 
 import {
   createMcpServer,
@@ -99,6 +100,11 @@ type ConnectedMcp = {
   readonly close: () => Promise<void>;
 };
 
+const describedPropertiesSchema = z.record(
+  z.string(),
+  z.looseObject({ description: z.string().min(1) }),
+);
+
 const connections: Array<() => Promise<void>> = [];
 
 const connect = async (service: CalendarService): Promise<ConnectedMcp> => {
@@ -127,6 +133,9 @@ describe("MCP server", () => {
       name: "caldav-mcp",
       version: SERVER_VERSION,
     });
+    expect(client.getInstructions()).toContain(
+      "Create, update, and delete change the remote calendar",
+    );
     const tools = await client.listTools();
 
     expect(tools.tools.map((tool) => tool.name)).toEqual([
@@ -161,6 +170,15 @@ describe("MCP server", () => {
             "https://json-schema.org/draft/2020-12/schema",
       ),
     ).toBe(true);
+
+    for (const tool of tools.tools) {
+      expect(() => z.string().min(81).parse(tool.description)).not.toThrow();
+      const properties = tool.inputSchema.properties;
+      if (properties === undefined) {
+        continue;
+      }
+      expect(() => describedPropertiesSchema.parse(properties)).not.toThrow();
+    }
   });
 
   it("returns structured, paginated event results with a bound cursor", async () => {
