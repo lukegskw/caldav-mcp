@@ -255,10 +255,11 @@ export CALDAV_MCP_PUBLISHED_PORT=18100
 docker compose -f compose.example.yaml up -d
 ```
 
-The `latest` tag follows the newest successful build from the default branch. The
-Compose example pins that image by digest so deployments are reproducible. To
-upgrade, download the updated Compose example or replace the full image reference
-with the desired published version and digest.
+The `latest` tag follows the newest stable release. Stable releases also publish an
+exact tag such as `0.1.6` and a minor-series tag such as `0.1`. The Compose example
+pins `latest` by digest so deployments are reproducible. To upgrade, download the
+updated Compose example or replace the full image reference with the desired
+published version and digest.
 
 The Streamable HTTP endpoint will be available at:
 
@@ -593,9 +594,12 @@ can be retried without publishing a second npm version.
    automatically before publishing.
 
 The release workflow validates the versions, tests the packed npm artifact, and
-publishes the immutable container tag, npm package, MCP Registry entry, and GitHub
-release. Gemini can discover the tagged extension without another per-release edit. A
-rerun skips matching artifacts that already exist and resumes the missing steps.
+publishes the exact, minor-series, and `latest` container tags together with the npm
+package, MCP Registry entry, and GitHub release. Prereleases receive only their exact
+container tag. Gemini can discover the tagged extension without another per-release
+edit. A rerun skips matching artifacts that already exist and resumes the missing
+steps. See [the container release strategy](docs/container-release-strategy.md) for the
+CI and tagging decisions.
 
 ## License
 

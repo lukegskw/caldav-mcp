@@ -9,10 +9,11 @@ const readProjectFile = (path: string): Promise<string> =>
 
 describe("container publication metadata", () => {
   it("uses the hardened NAS deployment and GHCR publication contract", async () => {
-    const [dockerfile, compose, workflow] = await Promise.all([
+    const [dockerfile, compose, workflow, releaseWorkflow] = await Promise.all([
       readProjectFile("Dockerfile"),
       readProjectFile("compose.example.yaml"),
       readProjectFile(".github/workflows/container.yml"),
+      readProjectFile(".github/workflows/publish.yml"),
     ]);
 
     expect(dockerfile).toContain("FROM node:24-bookworm-slim");
@@ -24,8 +25,11 @@ describe("container publication metadata", () => {
     expect(compose).toContain("healthcheck:");
     expect(compose).toContain("ghcr.io/lukegskw/caldav-mcp:latest");
     expect(compose).not.toContain("volumes:");
-    expect(workflow).toContain("linux/amd64,linux/arm64");
-    expect(workflow).toContain("packages: write");
+    expect(workflow).toContain("platforms: linux/amd64");
+    expect(workflow).toContain("push: false");
+    expect(workflow).not.toContain("packages: write");
+    expect(workflow).not.toContain("docker/login-action");
+    expect(releaseWorkflow).toContain("linux/amd64,linux/arm64");
     expect(workflow).toMatch(
       /^\s+uses: docker\/build-push-action@[a-f0-9]{40} # v\d+$/m,
     );
@@ -56,6 +60,10 @@ describe("container publication metadata", () => {
     expect(workflow).toContain("branches: [main]");
     expect(workflow).toContain("Create release tag");
     expect(workflow).toContain("should_publish");
+    expect(workflow).toContain("container_tags");
+    expect(workflow).toContain("${REGISTRY}/${IMAGE_NAME}:latest");
+    expect(workflow).toContain("provenance: mode=max");
+    expect(workflow).toContain("sbom: true");
     expect(workflow).toContain("pnpm test:package");
     expect(workflow).toContain("pnpm test:distribution");
     expect(workflow).toContain("mcp-publisher validate");
