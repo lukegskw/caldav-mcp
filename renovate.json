@@ -1,0 +1,16 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "pinDigests": true,
+  "labels": ["renovate", "dependencies"],
+  "packageRules": [
+    {
+      "description": "Separate Digest update PRs",
+      "matchUpdateTypes": ["pinDigest"],
+      "groupName": null
+    }
+  ],
+  "prHourlyLimit": 0,
+  "prConcurrentLimit": 0,
+  "minimumReleaseAge": "1 day"
+}
