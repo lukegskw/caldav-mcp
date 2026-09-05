@@ -1,6 +1,6 @@
 services:
   caldav-mcp:
-    image: ghcr.io/lukegskw/caldav-mcp:latest
+    image: ghcr.io/lukegskw/caldav-mcp:latest@sha256:d2d8aa0dc9cbc4ece3e99136dfd997ebad6393689d62113e7d3dcefbc4105fa4
     restart: unless-stopped
     read_only: true
     user: "${CALDAV_MCP_UID_GID:-10001:10001}"

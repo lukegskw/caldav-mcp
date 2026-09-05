@@ -207,7 +207,8 @@ Deleting a single expanded occurrence is not supported in the current release.
 - Two-factor authentication enabled for the Apple Account.
 - An [app-specific password](https://support.apple.com/en-us/102654).
 - Docker and Docker Compose for container deployment, or Node.js 24+ for `npx`.
-- pnpm is required only when building from source.
+- pnpm is required only when building from source. Corepack and CI use the version
+  pinned in `package.json`.
 
 ### npm / npx
 
@@ -254,9 +255,10 @@ export CALDAV_MCP_PUBLISHED_PORT=18100
 docker compose -f compose.example.yaml up -d
 ```
 
-The `latest` tag follows the newest successful build from the default branch. For a
-controlled deployment or rollback, replace it in the Compose file with a published
-version or immutable `sha-*` tag.
+The `latest` tag follows the newest successful build from the default branch. The
+Compose example pins that image by digest so deployments are reproducible. To
+upgrade, download the updated Compose example or replace the full image reference
+with the desired published version and digest.
 
 The Streamable HTTP endpoint will be available at:
 
@@ -301,6 +303,11 @@ docker buildx build --load -t caldav-mcp:local .
 ```
 
 ### Local Node.js installation
+
+Builds and typechecks use TypeScript 7. The `typescript` dependency aliases
+`@typescript/typescript6` for ESLint, which still requires the TypeScript 6 API;
+`@typescript/native` supplies TypeScript 7’s `tsc` executable. See the
+[TypeScript migration guidance](https://devblogs.microsoft.com/typescript/announcing-typescript-7-0/#running-side-by-side-with-typescript-6.0).
 
 ```sh
 git clone https://github.com/lukegskw/caldav-mcp.git

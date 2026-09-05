@@ -26,7 +26,9 @@ describe("container publication metadata", () => {
     expect(compose).not.toContain("volumes:");
     expect(workflow).toContain("linux/amd64,linux/arm64");
     expect(workflow).toContain("packages: write");
-    expect(workflow).toContain("docker/build-push-action@v7");
+    expect(workflow).toMatch(
+      /^\s+uses: docker\/build-push-action@[a-f0-9]{40} # v\d+$/m,
+    );
     expect(workflow).toContain("needs: quality");
     expect(workflow).toContain("Radicale==3.7.7");
     expect(workflow).toContain("RADICALE_URL");

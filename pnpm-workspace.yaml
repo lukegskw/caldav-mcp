@@ -1,2 +1,6 @@
 minimumReleaseAge: 1440
 minimumReleaseAgeStrict: true
+
+# Native bindings ship as optional packages; no fallback download is needed.
+allowBuilds:
+  unrs-resolver: false

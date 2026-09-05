@@ -1,19 +1,19 @@
-FROM node:24-bookworm-slim AS builder
+FROM node:24-bookworm-slim@sha256:ba849c60be29959425b8734d57b8b4b7d56f98edd9504c9af091d5281095a71e AS builder
 
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
 
-RUN corepack enable && corepack prepare pnpm@10.25.0 --activate
+RUN corepack enable
 WORKDIR /app
 
-COPY package.json pnpm-lock.yaml tsconfig.json tsconfig.build.json ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.json tsconfig.build.json ./
 COPY src ./src
 
 RUN pnpm install --frozen-lockfile
 RUN pnpm build
 RUN pnpm prune --prod
 
-FROM node:24-bookworm-slim
+FROM node:24-bookworm-slim@sha256:ba849c60be29959425b8734d57b8b4b7d56f98edd9504c9af091d5281095a71e
 
 ENV NODE_ENV=production
 
