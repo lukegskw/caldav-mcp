@@ -15,6 +15,25 @@ import type {
   CalendarResource,
 } from "./types.js";
 
+const calendarDiscoveryTtlMilliseconds = 5 * 60 * 1_000;
+
+type CalendarSnapshot = {
+  readonly calendars: readonly DAVCalendar[];
+  readonly discoveredAt: number;
+};
+
+const calendarUrlsEqual = (left: string, right: string): boolean => {
+  const withoutTrailingSlash = (value: string): string =>
+    value.endsWith("/") ? value.slice(0, -1) : value;
+  return withoutTrailingSlash(left) === withoutTrailingSlash(right);
+};
+
+const findCalendar = (
+  calendars: readonly DAVCalendar[],
+  calendarUrl: string,
+): DAVCalendar | undefined =>
+  calendars.find((calendar) => calendarUrlsEqual(calendar.url, calendarUrl));
+
 const createTimedFetch =
   (timeoutMilliseconds: number): typeof fetch =>
   (input, init) => {
@@ -146,6 +165,8 @@ export const createCalDavGateway = (config: AppConfig): CalDavGateway => {
     fetch: createTimedFetch(config.requestTimeoutMs),
   });
   let login: Promise<void> | undefined;
+  let calendarSnapshot: CalendarSnapshot | undefined;
+  let calendarDiscovery: Promise<CalendarSnapshot> | undefined;
 
   const ensureLogin = async (): Promise<void> => {
     login ??= client.login({ loadCollections: false, loadObjects: false });
@@ -157,21 +178,55 @@ export const createCalDavGateway = (config: AppConfig): CalDavGateway => {
     }
   };
 
-  const fetchCalendars = async (): Promise<readonly DAVCalendar[]> => {
-    await ensureLogin();
-    return client.fetchCalendars();
+  const discoverCalendars = async (): Promise<CalendarSnapshot> => {
+    calendarDiscovery ??= (async () => {
+      await ensureLogin();
+      const calendars = await client.fetchCalendars();
+      const snapshot = {
+        calendars,
+        discoveredAt: Date.now(),
+      } satisfies CalendarSnapshot;
+      calendarSnapshot = snapshot;
+      return snapshot;
+    })();
+    const currentDiscovery = calendarDiscovery;
+    try {
+      return await currentDiscovery;
+    } finally {
+      if (calendarDiscovery === currentDiscovery) {
+        calendarDiscovery = undefined;
+      }
+    }
   };
 
   const resolveCalendar = async (calendarId: string): Promise<DAVCalendar> => {
     const handle = readCalendarId(calendarId);
-    const calendars = await fetchCalendars();
-    const calendar = calendars.find(
-      (candidate) => candidate.url === handle.calendarUrl,
+    const cachedSnapshot = calendarSnapshot;
+    const cachedCalendar =
+      cachedSnapshot === undefined ||
+      Date.now() - cachedSnapshot.discoveredAt >
+        calendarDiscoveryTtlMilliseconds
+        ? undefined
+        : findCalendar(cachedSnapshot.calendars, handle.calendarUrl);
+    if (cachedCalendar !== undefined) {
+      return cachedCalendar;
+    }
+
+    const previousSnapshot = calendarSnapshot;
+    const discoveredSnapshot = await discoverCalendars();
+    const calendar = findCalendar(
+      discoveredSnapshot.calendars,
+      handle.calendarUrl,
     );
     if (calendar === undefined) {
+      const wasPreviouslyDiscovered =
+        previousSnapshot !== undefined &&
+        findCalendar(previousSnapshot.calendars, handle.calendarUrl) !==
+          undefined;
       throw createAppError({
         code: "CALENDAR_NOT_FOUND",
         message: "The calendar is not available for the configured account",
+        retryable: wasPreviouslyDiscovered,
       });
     }
     return calendar;
@@ -179,8 +234,8 @@ export const createCalDavGateway = (config: AppConfig): CalDavGateway => {
 
   const listCalendars = (): Promise<readonly CalendarInfo[]> =>
     protect(async () => {
-      const calendars = await fetchCalendars();
-      return calendars.map((calendar) => ({
+      const snapshot = await discoverCalendars();
+      return snapshot.calendars.map((calendar) => ({
         calendarId: createCalendarId(calendar.url),
         displayName: calendarDisplayName(calendar),
         description: calendarDescription(calendar),
