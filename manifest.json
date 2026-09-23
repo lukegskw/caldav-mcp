@@ -21,11 +21,7 @@
     "entry_point": "dist/main.js",
     "mcp_config": {
       "command": "node",
-      "args": [
-        "${__dirname}/dist/main.js",
-        "--transport",
-        "stdio"
-      ],
+      "args": ["${__dirname}/dist/main.js", "--transport", "stdio"],
       "env": {
         "CALDAV_USERNAME": "${user_config.username}",
         "CALDAV_PASSWORD": "${user_config.password}"
@@ -72,11 +68,7 @@
     "https://www.apple.com/legal/privacy/"
   ],
   "compatibility": {
-    "platforms": [
-      "darwin",
-      "win32",
-      "linux"
-    ],
+    "platforms": ["darwin", "win32", "linux"],
     "runtimes": {
       "node": ">=22"
     }
