@@ -17,9 +17,11 @@ const projectRoot = resolve(import.meta.dirname, "..");
 const packagePath = resolve(projectRoot, "package.json");
 const serverPath = resolve(projectRoot, "server.json");
 const geminiPath = resolve(projectRoot, "gemini-extension.json");
+const manifestPath = resolve(projectRoot, "manifest.json");
 const packageMetadata = JSON.parse(await readFile(packagePath, "utf8"));
 const serverMetadata = JSON.parse(await readFile(serverPath, "utf8"));
 const geminiMetadata = JSON.parse(await readFile(geminiPath, "utf8"));
+const bundleManifest = JSON.parse(await readFile(manifestPath, "utf8"));
 
 async function writeJson(path, value) {
   const json = `${JSON.stringify(value, null, 2)}\n`;
@@ -50,11 +52,13 @@ serverMetadata.version = version;
 npmPackage.version = version;
 ociPackage.identifier = ociPackage.identifier.replace(/:[^/]+$/, `:${version}`);
 geminiMetadata.version = version;
+bundleManifest.version = version;
 
 await Promise.all([
   writeJson(packagePath, packageMetadata),
   writeJson(serverPath, serverMetadata),
   writeJson(geminiPath, geminiMetadata),
+  writeJson(manifestPath, bundleManifest),
 ]);
 
 process.stdout.write(`Prepared release metadata for ${version}\n`);

@@ -22,11 +22,13 @@ function checkNpxLatest(server, label) {
   );
 }
 
-const [packageMetadata, serverMetadata, geminiMetadata] = await Promise.all([
-  readJson("package.json"),
-  readJson("server.json"),
-  readJson("gemini-extension.json"),
-]);
+const [packageMetadata, serverMetadata, geminiMetadata, bundleManifest] =
+  await Promise.all([
+    readJson("package.json"),
+    readJson("server.json"),
+    readJson("gemini-extension.json"),
+    readJson("manifest.json"),
+  ]);
 
 const version = packageMetadata.version;
 const repositoryUrl = "https://github.com/lukegskw/caldav-mcp";
@@ -50,6 +52,7 @@ check(
 for (const [label, candidate] of [
   ["server.json", serverMetadata.version],
   ["gemini-extension.json", geminiMetadata.version],
+  ["manifest.json", bundleManifest.version],
 ]) {
   check(candidate === version, `${label} version must equal ${version}`);
 }
@@ -80,6 +83,26 @@ check(
 check(
   geminiMetadata.name === "caldav-mcp",
   "Gemini extension name is unexpected",
+);
+
+check(bundleManifest.name === "caldav-mcp", "MCP bundle name is unexpected");
+check(
+  bundleManifest.server?.type === "node" &&
+    bundleManifest.server.entry_point === packageMetadata.bin?.["caldav-mcp"] &&
+    bundleManifest.server.mcp_config?.args?.[0] ===
+      `\${__dirname}/${bundleManifest.server.entry_point}`,
+  "MCP bundle must launch the package bin entry point",
+);
+check(
+  bundleManifest.compatibility?.runtimes?.node ===
+    packageMetadata.engines?.node,
+  "MCP bundle Node.js runtime must match package.json engines.node",
+);
+check(
+  bundleManifest.user_config?.password?.sensitive === true &&
+    bundleManifest.server.mcp_config.env?.CALDAV_PASSWORD ===
+      "${user_config.password}",
+  "MCP bundle password setting must be sensitive",
 );
 process.stdout.write(
   `Distribution metadata is consistent at version ${version}\n`,

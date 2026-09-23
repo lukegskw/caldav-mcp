@@ -37,20 +37,25 @@ describe("container publication metadata", () => {
     expect(workflow).toContain("Radicale==3.7.7");
     expect(workflow).toContain("RADICALE_URL");
     expect(workflow).toContain("pnpm test:package");
+    expect(workflow).toContain("node-version: [22, 24]");
+    expect(workflow).toContain("pnpm test:mcpb");
     expect(workflow).not.toContain("npm publish");
     expect(workflow).not.toContain('tags: ["v*.*.*"]');
   });
 
   it("keeps release metadata aligned and tests the installable artifact", async () => {
-    const [packageJson, serverJson, readme, workflow] = await Promise.all([
-      readProjectFile("package.json"),
-      readProjectFile("server.json"),
-      readProjectFile("README.md"),
-      readProjectFile(".github/workflows/publish.yml"),
-    ]);
+    const [packageJson, serverJson, manifestJson, readme, workflow] =
+      await Promise.all([
+        readProjectFile("package.json"),
+        readProjectFile("server.json"),
+        readProjectFile("manifest.json"),
+        readProjectFile("README.md"),
+        readProjectFile(".github/workflows/publish.yml"),
+      ]);
 
     expect(packageJson).toContain(`"version": "${SERVER_VERSION}"`);
     expect(packageJson).toContain('"caldav-mcp": "dist/main.js"');
+    expect(manifestJson).toContain(`"version": "${SERVER_VERSION}"`);
     expect(serverJson).toContain(`"version": "${SERVER_VERSION}"`);
     expect(serverJson).toContain(
       `"identifier": "ghcr.io/lukegskw/caldav-mcp:${SERVER_VERSION}"`,
@@ -66,6 +71,8 @@ describe("container publication metadata", () => {
     expect(workflow).toContain("sbom: true");
     expect(workflow).toContain("pnpm test:package");
     expect(workflow).toContain("pnpm test:distribution");
+    expect(workflow).toContain("pnpm test:mcpb");
+    expect(workflow).toContain("gh release upload");
     expect(workflow).toContain("mcp-publisher validate");
     expect(workflow).toContain("npm publish --provenance");
     expect(workflow).toContain("mcp-publisher publish");

@@ -1,6 +1,7 @@
 .git
 .env
 .env.*
+build
 coverage
 dist
 node_modules
