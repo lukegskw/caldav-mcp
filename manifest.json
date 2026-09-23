@@ -1,7 +1,7 @@
 {
   "manifest_version": "0.3",
   "name": "caldav-mcp",
-  "display_name": "iCloud Calendar (CalDAV)",
+  "display_name": "CalDAV MCP Server",
   "version": "0.1.8",
   "description": "Read and manage iCloud Calendar events, including multiple reminders per event.",
   "long_description": "Connects one iCloud account through CalDAV so the assistant can list calendars, find events, and create, update, or delete events and recurring series.\n\n- Multiple reminders (VALARM) per event, using the Apple alarm extensions iCloud expects.\n- Partial updates preserve unknown iCalendar data, time zones, recurrence exceptions, and alarms.\n- ETag checks prevent overwriting concurrent changes.\n- No telemetry and no database: calendar data stays between your machine and iCloud.\n\nRequires an Apple app-specific password (https://support.apple.com/en-us/102654), not your Apple Account password. This independent project is not affiliated with Apple Inc.",
@@ -21,7 +21,11 @@
     "entry_point": "dist/main.js",
     "mcp_config": {
       "command": "node",
-      "args": ["${__dirname}/dist/main.js", "--transport", "stdio"],
+      "args": [
+        "${__dirname}/dist/main.js",
+        "--transport",
+        "stdio"
+      ],
       "env": {
         "CALDAV_USERNAME": "${user_config.username}",
         "CALDAV_PASSWORD": "${user_config.password}"
@@ -68,7 +72,11 @@
     "https://www.apple.com/legal/privacy/"
   ],
   "compatibility": {
-    "platforms": ["darwin", "win32", "linux"],
+    "platforms": [
+      "darwin",
+      "win32",
+      "linux"
+    ],
     "runtimes": {
       "node": ">=22"
     }
