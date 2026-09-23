@@ -20,9 +20,16 @@ Apple Inc. Apple and iCloud are trademarks of their respective owner.
 
 ## Quick start
 
-Install [Node.js 24+](https://nodejs.org/), create an
-[Apple app-specific password](https://support.apple.com/en-us/102654), and add this
-local `stdio` server to a JSON-configured MCP client such as Claude Desktop or Gemini:
+Create an [Apple app-specific password](https://support.apple.com/en-us/102654), then
+pick the option for your client.
+
+**Claude Desktop (one click, no Node.js install):** download
+[`caldav-mcp.mcpb`](https://github.com/lukegskw/caldav-mcp/releases/latest/download/caldav-mcp.mcpb),
+open it with Claude Desktop, and enter your Apple Account email and app-specific
+password. See [Claude Desktop extension](#claude-desktop-extension-recommended).
+
+**Any other `stdio` client:** install [Node.js 22 or newer](#nodejs-requirements) and
+add this server to a JSON-configured MCP client such as Gemini CLI or Claude Code:
 
 ```json
 {
@@ -189,7 +196,7 @@ Deleting a single expanded occurrence is not supported in the current release.
 
 ## Tech stack
 
-- [Node.js 24+](https://nodejs.org/)
+- [Node.js 22+](https://nodejs.org/) (see [Node.js requirements](#nodejs-requirements))
 - [TypeScript](https://www.typescriptlang.org/) with strict project rules
 - [Model Context Protocol TypeScript SDK](https://github.com/modelcontextprotocol/typescript-sdk)
 - [tsdav](https://github.com/natelindev/tsdav)
@@ -206,9 +213,26 @@ Deleting a single expanded occurrence is not supported in the current release.
 - An iCloud account with Calendar enabled.
 - Two-factor authentication enabled for the Apple Account.
 - An [app-specific password](https://support.apple.com/en-us/102654).
-- Docker and Docker Compose for container deployment, or Node.js 24+ for `npx`.
+- Docker and Docker Compose for container deployment, Node.js 22+ for `npx`, or
+  Claude Desktop for the one-click extension.
 - pnpm is required only when building from source. Corepack and CI use the version
   pinned in `package.json`.
+
+### Node.js requirements
+
+| Use                                   | Node.js                                                            |
+| ------------------------------------- | ------------------------------------------------------------------ |
+| Claude Desktop extension (`.mcpb`)    | None to install; Claude Desktop uses its built-in Node.js          |
+| `npx` or a global npm install         | 22 LTS or newer; CI tests 22 and 24                                |
+| Docker image                          | None to install; the image ships Node.js 24                        |
+| Building from source and contributing | 22.13 or newer, required by ESLint 10 and Vitest 5; 24 recommended |
+
+`engines.node` in `package.json` is `>=22`. Node.js 20 reached end of life in April 2026
+and is not supported; npm prints an `EBADENGINE` warning on older versions. Check the
+version your MCP client will use with `node --version`. Desktop clients may use a
+different `node` than your terminal, so if a client cannot start the server, point it at
+the absolute path of a Node.js 22+ `npx` (`command -v npx` on macOS/Linux, `where npx`
+on Windows).
 
 ### npm / npx
 
@@ -305,6 +329,7 @@ docker buildx build --load -t caldav-mcp:local .
 
 ### Local Node.js installation
 
+Building from source requires Node.js 22.13 or newer; Node.js 24 is recommended.
 Builds and typechecks use TypeScript 7. The `typescript` dependency aliases
 `@typescript/typescript6` for ESLint, which still requires the TypeScript 6 API;
 `@typescript/native` supplies TypeScript 7’s `tsc` executable. See the
@@ -351,6 +376,24 @@ Secrets must be supplied through the deployment platform or environment. Never c
 
 ## MCP client setup
 
+### Claude Desktop extension (recommended)
+
+Claude Desktop for macOS and Windows installs the server as a one-click
+[MCP Bundle](https://github.com/modelcontextprotocol/mcpb) and runs it with its built-in
+Node.js:
+
+1. Download
+   [`caldav-mcp.mcpb`](https://github.com/lukegskw/caldav-mcp/releases/latest/download/caldav-mcp.mcpb)
+   from the latest release.
+2. Open it with Claude Desktop (double-click it, or drag it onto
+   **Settings -> Extensions**) and choose **Install**.
+3. Enter the Apple Account email and app-specific password. The password is stored as
+   a sensitive setting.
+
+To upgrade, install the `.mcpb` from a newer release. See
+[Claude Desktop extension](docs/claude-desktop-extension.md) for bundle contents and
+how it is built and released.
+
 ### Gemini CLI extension
 
 Install directly from GitHub and enable automatic extension updates:
@@ -386,9 +429,11 @@ path reported by `command -v npx` on macOS/Linux or `where npx` on Windows.
 
 #### Claude Desktop
 
-Add the [Quick start](#quick-start) JSON under `mcpServers` in
-`claude_desktop_config.json`, then completely restart Claude Desktop. Open the file
-through **Settings -> Developer -> Edit Config** instead of assuming its location.
+The [extension](#claude-desktop-extension-recommended) is the simplest option. To
+configure the server manually instead, add the [Quick start](#quick-start) JSON under
+`mcpServers` in `claude_desktop_config.json`, then completely restart Claude Desktop.
+Open the file through **Settings -> Developer -> Edit Config** instead of assuming its
+location.
 
 #### Claude Code
 
@@ -537,11 +582,11 @@ pnpm test:integration
 pnpm build
 pnpm test:package
 pnpm test:distribution
+pnpm build:mcpb
+pnpm test:mcpb
 ```
 
-Finally, connect with an MCP client and confirm that all six tools are listed. Before a
-release, run the dedicated [iCloud manual validation](docs/icloud-manual-test.md) against
-a test calendar.
+Finally, connect with an MCP client and confirm that all six tools are listed.
 
 ## Limitations
 
@@ -558,8 +603,7 @@ a test calendar.
 - Attendee scheduling is outside the current scope.
 - Providers other than iCloud are not officially supported.
 
-See [troubleshooting](docs/troubleshooting.md) for discovery, authentication, ETag, and
-Apple extension guidance. Review [SECURITY.md](SECURITY.md) before reporting a security
+Review [SECURITY.md](SECURITY.md) before reporting a security
 issue or attaching diagnostics.
 
 ## Contributing
@@ -587,19 +631,20 @@ Releases are version-driven and automated from `main` so that a partial registry
 can be retried without publishing a second npm version.
 
 1. Prepare the new version with `pnpm release:prepare X.Y.Z`. This synchronizes the npm,
-   MCP Registry, and Gemini metadata.
-2. Run the verification suite, including `pnpm test:distribution`.
+   MCP Registry, Gemini, and MCP Bundle (`manifest.json`) metadata.
+2. Run the verification suite, including `pnpm test:distribution` and `pnpm test:mcpb`.
 3. Commit and push the release changes to `main`.
 4. The release workflow validates the commit and creates the matching `vX.Y.Z` tag
    automatically before publishing.
 
-The release workflow validates the versions, tests the packed npm artifact, and
-publishes the exact, minor-series, and `latest` container tags together with the npm
-package, MCP Registry entry, and GitHub release. Prereleases receive only their exact
+The release workflow validates the versions, tests the packed npm artifact and the
+Claude Desktop bundle, and publishes the exact, minor-series, and `latest` container
+tags together with the npm package, MCP Registry entry, and GitHub release with
+`caldav-mcp.mcpb` attached. Prereleases receive only their exact
 container tag. Gemini can discover the tagged extension without another per-release
 edit. A rerun skips matching artifacts that already exist and resumes the missing
-steps. See [the container release strategy](docs/container-release-strategy.md) for the
-CI and tagging decisions.
+steps. See [Claude Desktop extension](docs/claude-desktop-extension.md) for building,
+testing, and shipping the `.mcpb` bundle.
 
 ## License
 

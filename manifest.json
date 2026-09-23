@@ -1,0 +1,91 @@
+{
+  "manifest_version": "0.3",
+  "name": "caldav-mcp",
+  "display_name": "CalDAV MCP Server",
+  "version": "0.1.8",
+  "description": "Read and manage iCloud Calendar events, including multiple reminders per event.",
+  "long_description": "Connects one iCloud account through CalDAV so the assistant can list calendars, find events, and create, update, or delete events and recurring series.\n\n- Multiple reminders (VALARM) per event, using the Apple alarm extensions iCloud expects.\n- Partial updates preserve unknown iCalendar data, time zones, recurrence exceptions, and alarms.\n- ETag checks prevent overwriting concurrent changes.\n- No telemetry and no database: calendar data stays between your machine and iCloud.\n\nRequires an Apple app-specific password (https://support.apple.com/en-us/102654), not your Apple Account password. This independent project is not affiliated with Apple Inc.",
+  "author": {
+    "name": "lukegskw",
+    "url": "https://github.com/lukegskw"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lukegskw/caldav-mcp.git"
+  },
+  "homepage": "https://github.com/lukegskw/caldav-mcp#readme",
+  "documentation": "https://github.com/lukegskw/caldav-mcp#readme",
+  "support": "https://github.com/lukegskw/caldav-mcp/issues",
+  "server": {
+    "type": "node",
+    "entry_point": "dist/main.js",
+    "mcp_config": {
+      "command": "node",
+      "args": ["${__dirname}/dist/main.js", "--transport", "stdio"],
+      "env": {
+        "CALDAV_USERNAME": "${user_config.username}",
+        "CALDAV_PASSWORD": "${user_config.password}"
+      }
+    }
+  },
+  "tools": [
+    {
+      "name": "list_calendars",
+      "description": "List calendars available in the configured iCloud account."
+    },
+    {
+      "name": "list_events",
+      "description": "List events in a time range and expand recurring series."
+    },
+    {
+      "name": "get_event",
+      "description": "Read one event by resource ID or by calendar ID and UID."
+    },
+    {
+      "name": "create_event",
+      "description": "Create a timed, all-day, or recurring event with reminders."
+    },
+    {
+      "name": "update_event",
+      "description": "Patch an event or complete recurring series."
+    },
+    {
+      "name": "delete_event",
+      "description": "Delete an event or complete recurring series."
+    }
+  ],
+  "keywords": [
+    "icloud",
+    "calendar",
+    "apple-calendar",
+    "caldav",
+    "reminders",
+    "valarm"
+  ],
+  "license": "MIT",
+  "privacy_policies": [
+    "https://github.com/lukegskw/caldav-mcp/blob/main/PRIVACY.md",
+    "https://www.apple.com/legal/privacy/"
+  ],
+  "compatibility": {
+    "platforms": ["darwin", "win32", "linux"],
+    "runtimes": {
+      "node": ">=22"
+    }
+  },
+  "user_config": {
+    "username": {
+      "type": "string",
+      "title": "Apple Account email",
+      "description": "The email address of the Apple Account that owns the calendars.",
+      "required": true
+    },
+    "password": {
+      "type": "string",
+      "title": "App-specific password",
+      "description": "An Apple app-specific password (xxxx-xxxx-xxxx-xxxx), not the Apple Account password.",
+      "sensitive": true,
+      "required": true
+    }
+  }
+}

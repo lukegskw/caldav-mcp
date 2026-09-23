@@ -2,6 +2,7 @@
 .env
 .env.*
 !.env.example
+build/
 coverage/
 dist/
 node_modules/
