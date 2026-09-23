@@ -586,9 +586,7 @@ pnpm build:mcpb
 pnpm test:mcpb
 ```
 
-Finally, connect with an MCP client and confirm that all six tools are listed. Before a
-release, run the dedicated [iCloud manual validation](docs/icloud-manual-test.md) against
-a test calendar.
+Finally, connect with an MCP client and confirm that all six tools are listed.
 
 ## Limitations
 
@@ -605,8 +603,7 @@ a test calendar.
 - Attendee scheduling is outside the current scope.
 - Providers other than iCloud are not officially supported.
 
-See [troubleshooting](docs/troubleshooting.md) for discovery, authentication, ETag, and
-Apple extension guidance. Review [SECURITY.md](SECURITY.md) before reporting a security
+Review [SECURITY.md](SECURITY.md) before reporting a security
 issue or attaching diagnostics.
 
 ## Contributing
@@ -646,9 +643,8 @@ tags together with the npm package, MCP Registry entry, and GitHub release with
 `caldav-mcp.mcpb` attached. Prereleases receive only their exact
 container tag. Gemini can discover the tagged extension without another per-release
 edit. A rerun skips matching artifacts that already exist and resumes the missing
-steps. See [the container release strategy](docs/container-release-strategy.md) for the
-CI and tagging decisions, and [Claude Desktop extension](docs/claude-desktop-extension.md)
-for building, testing, and shipping the `.mcpb` bundle.
+steps. See [Claude Desktop extension](docs/claude-desktop-extension.md) for building,
+testing, and shipping the `.mcpb` bundle.
 
 ## License
 

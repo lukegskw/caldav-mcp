@@ -56,9 +56,8 @@ the server version matches `package.json` and that the tools the server lists ma
 `tools` array in the manifest.
 
 Before a release that changes the bundle, install `build/caldav-mcp.mcpb` in Claude
-Desktop and run the [iCloud manual validation](icloud-manual-test.md) against a test
-calendar. Claude Desktop writes server logs to `mcp-server-<name>.log` in its `logs`
-directory.
+Desktop and exercise the tools against a test calendar. Claude Desktop writes server
+logs to `mcp-server-<name>.log` in its `logs` directory.
 
 ## Shipping a release
 
