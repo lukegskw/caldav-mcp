@@ -222,6 +222,13 @@ export const eventOutputSchema = z
     alarms: z
       .array(normalizedAlarmOutputSchema)
       .describe("Normalized alarms attached to the event."),
+    travel_minutes: z
+      .number()
+      .int()
+      .nullable()
+      .describe(
+        "Apple Calendar travel time in whole minutes before the start, or null when none is set.",
+      ),
     recurring: z
       .boolean()
       .describe("Whether this event belongs to a recurring series."),
