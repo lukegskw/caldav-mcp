@@ -168,13 +168,13 @@ importers:
     dependencies:
       '@modelcontextprotocol/express':
         specifier: ^2.0.0
-        version: 2.0.2(@modelcontextprotocol/server@2.0.0)(express@5.2.1)
+        version: 2.0.2(@modelcontextprotocol/server@2.3.1)(express@5.2.1)
       '@modelcontextprotocol/node':
         specifier: ^2.0.0
-        version: 2.0.0(@modelcontextprotocol/server@2.0.0)(hono@4.12.32)
+        version: 2.0.0(@modelcontextprotocol/server@2.3.1)(hono@4.12.32)
       '@modelcontextprotocol/server':
-        specifier: ^2.0.0
-        version: 2.0.0
+        specifier: ^2.3.1
+        version: 2.3.1
       express:
         specifier: ^5.2.1
         version: 5.2.1
@@ -406,6 +406,10 @@ packages:
     resolution: {integrity: sha512-pJCEwGG7Lfr/+PQp9ZTwKXNeO5wzbfKL7H3MYpCorM4oFBoQrdjnBgEoqG+RjhsvS1FKrDbKux+M1HhlnGWqcA==}
     engines: {node: '>=20'}
 
+  '@modelcontextprotocol/core@2.3.1':
+    resolution: {integrity: sha512-laVmIhPGpWi7rG9q+0UigblRN0Hws/Yjlb6qLFtVqryXVLkc4h+yN8z731POD2LnAGQlFe7/tXhUm7Bi0YB91g==}
+    engines: {node: '>=20'}
+
   '@modelcontextprotocol/express@2.0.2':
     resolution: {integrity: sha512-lUvfV7gT/tgP8nLRs0ajUtgL+MlMNWWHAls5c9cf4PyBexq3EgmhWWrS4irQOC9OoKuUsHHcNjUw9urhHz542g==}
     engines: {node: '>=20'}
@@ -423,8 +427,8 @@ packages:
       hono:
         optional: true
 
-  '@modelcontextprotocol/server@2.0.0':
-    resolution: {integrity: sha512-YhHWdHfpFMQfd0prsEnxKeS3Qz3ytIGmsS0sth4KDjnacIT7hxk6hXHkJ9KysxlkvTM+WZAtQbbcUhdoP4Hvtw==}
+  '@modelcontextprotocol/server@2.3.1':
+    resolution: {integrity: sha512-e59MfWuSssj6DoQ96JCTqdW1AXT5/XtnTl0WWd6MU1Ka434fFUGGosCLJbGNySDhHGvxQWoRWK137FXYFkYNWw==}
     engines: {node: '>=20'}
 
   '@napi-rs/wasm-runtime@1.1.6':
@@ -2177,22 +2181,26 @@ snapshots:
     dependencies:
       zod: 4.6.5
 
-  '@modelcontextprotocol/express@2.0.2(@modelcontextprotocol/server@2.0.0)(express@5.2.1)':
+  '@modelcontextprotocol/core@2.3.1':
     dependencies:
-      '@modelcontextprotocol/server': 2.0.0
+      zod: 4.6.5
+
+  '@modelcontextprotocol/express@2.0.2(@modelcontextprotocol/server@2.3.1)(express@5.2.1)':
+    dependencies:
+      '@modelcontextprotocol/server': 2.3.1
       cors: 2.8.6
       express: 5.2.1
 
-  '@modelcontextprotocol/node@2.0.0(@modelcontextprotocol/server@2.0.0)(hono@4.12.32)':
+  '@modelcontextprotocol/node@2.0.0(@modelcontextprotocol/server@2.3.1)(hono@4.12.32)':
     dependencies:
       '@hono/node-server': 1.19.15(hono@4.12.32)
-      '@modelcontextprotocol/server': 2.0.0
+      '@modelcontextprotocol/server': 2.3.1
     optionalDependencies:
       hono: 4.12.32
 
-  '@modelcontextprotocol/server@2.0.0':
+  '@modelcontextprotocol/server@2.3.1':
     dependencies:
-      '@modelcontextprotocol/core': 2.0.0
+      '@modelcontextprotocol/core': 2.3.1
       zod: 4.6.5
 
   '@napi-rs/wasm-runtime@1.1.6(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)':
