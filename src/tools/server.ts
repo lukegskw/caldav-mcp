@@ -173,7 +173,7 @@ export const createMcpServer = (service: CalendarService): McpServer => {
     {
       title: "Create calendar event",
       description:
-        "Create a new event in a writable iCloud calendar and return the stored representation; existing events are not changed. Use list_calendars first to obtain calendar_id, and use update_event when the event already exists. Timed values require matching offsets and timezones, all-day end dates are exclusive, and recurrence rules omit the RRULE: prefix.",
+        "Create a new event in a writable iCloud calendar and return the stored representation; existing events are not changed. Use list_calendars first to obtain calendar_id, and use update_event when the event already exists. Timed values require matching offsets and timezones, all-day end dates are exclusive, recurrence rules omit the RRULE: prefix, and travel_minutes sets Apple Calendar travel time for timed events.",
       inputSchema: createEventToolInputSchema,
       outputSchema: eventOutputSchema,
       annotations: {
