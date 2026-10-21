@@ -161,8 +161,7 @@ export const expandCalendarEvent = (
         ),
         location: eventText(item, "location", normalizedMaster.location),
         alarms: itemAlarms.length === 0 ? normalizedMaster.alarms : itemAlarms,
-        travelMinutes:
-          readTravelMinutes(item) ?? normalizedMaster.travelMinutes,
+        travelMinutes: readTravelMinutes(item),
         recurrenceException: details.item.isRecurrenceException(),
         recurrenceId: candidate.toString(),
       });

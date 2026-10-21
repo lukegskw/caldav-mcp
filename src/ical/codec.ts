@@ -693,6 +693,17 @@ export const patchCalendarEvent = ({
     replaceTextProperty(event, "summary", patch.summary);
   }
   if (patch.start !== undefined && patch.end !== undefined) {
+    if (
+      !isTimedTemporalValue(patch.start) &&
+      patch.travel_minutes === undefined &&
+      readTravelMinutes(event) !== null
+    ) {
+      throw createAppError({
+        code: "VALIDATION_FAILED",
+        message:
+          "Set travel_minutes to null when converting an event with travel time to all-day",
+      });
+    }
     replaceTemporalProperty(event, "dtstart", patch.start);
     replaceTemporalProperty(event, "dtend", patch.end);
   }
@@ -712,7 +723,7 @@ export const patchCalendarEvent = ({
     if (patch.travel_minutes !== null && isAllDayEvent(event)) {
       throw createAppError({
         code: "VALIDATION_FAILED",
-        message: "Travel time is only supported for timed events",
+        message: "travel_minutes requires a timed event; use null to clear it",
       });
     }
     setTravelMinutes(event, patch.travel_minutes);

@@ -121,7 +121,7 @@ export const createEventInputSchema = z
     if (value.travel_minutes !== null && !isTimedTemporalValue(value.start)) {
       context.addIssue({
         code: "custom",
-        message: "travel_minutes is only supported for timed events",
+        message: "travel_minutes requires a timed event; use null to clear it",
         path: ["travel_minutes"],
       });
     }
@@ -147,7 +147,7 @@ export const eventPatchSchema = z
     travel_minutes: travelMinutesSchema
       .optional()
       .describe(
-        "Replacement Apple Calendar travel time in whole minutes; use null to remove travel time. Only valid for timed events.",
+        "Replacement Apple Calendar travel time in whole minutes; omit to preserve it or use null to remove travel time and related routing metadata. A number requires a timed event; converting to all-day requires clearing existing travel time with null.",
       ),
     alarms: alarmsInputSchema
       .optional()
@@ -178,7 +178,8 @@ export const eventPatchSchema = z
       ) {
         context.addIssue({
           code: "custom",
-          message: "travel_minutes is only supported for timed events",
+          message:
+            "travel_minutes requires a timed event; use null to clear it",
           path: ["travel_minutes"],
         });
       }

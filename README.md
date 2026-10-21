@@ -202,17 +202,29 @@ Timed event with 30 minutes of Apple Calendar travel time:
 }
 ```
 
-`travel_minutes` accepts whole minutes from 1 to 1,440 and is only valid for timed
-events. It is stored as `X-APPLE-TRAVEL-DURATION`, which Apple Calendar shows as
-travel time before the event. Events returned by the read tools include
-`travel_minutes`, or `null` when none is set.
+`travel_minutes` sets a fixed travel duration before the event. In this example,
+travel starts at 09:30 and the appointment stays at 10:00–10:30. The server accepts
+whole minutes from 1 to 1,440 for timed events; omit the field or use `null` when
+creating an event without travel time. It does not calculate routes or change
+the event's start, end, or alarms.
+
+The duration is stored in Apple's `X-APPLE-TRAVEL-DURATION` extension. Display in
+other calendar clients depends on their support for that extension. Returned
+events include `travel_minutes`, rounded to the nearest whole minute, or `null`
+when the duration is missing, invalid, or rounds to zero.
 
 ### `update_event`
 
-Patches an event or complete recurring series. Omitted fields are preserved, `null`
-removes a nullable field, and `alarms: []` removes all alarms. `travel_minutes: null`
-removes travel time, including Apple's automatic travel-time metadata. An optional
-`expected_etag` prevents overwriting a newer server version.
+Patches an event or the master event of a recurring series. Omitted fields are
+preserved, `null` removes a nullable field, and `alarms: []` removes all alarms. An
+optional `expected_etag` prevents overwriting a newer server version.
+
+For travel time, omit `patch.travel_minutes` to keep the current value, set it to a
+number to replace the duration, or set it to `null` to remove the duration and
+related Apple routing metadata. For example, `"patch": { "travel_minutes": null }`
+clears travel time. When converting an event with travel time to all-day, include
+`travel_minutes: null` alongside the new start and end dates. Existing recurrence
+exceptions retain their own travel settings.
 
 ### `delete_event`
 

@@ -1,9 +1,6 @@
 import ICAL from "ical.js";
 
-// Apple Calendar stores travel time as a non-standard duration property on the
-// VEVENT, e.g. `X-APPLE-TRAVEL-DURATION;VALUE=DURATION:PT30M`. Automatically
-// calculated travel time additionally carries `X-APPLE-TRAVEL-START` (and, for
-// return trips, `X-APPLE-TRAVEL-RETURN*`) properties.
+// Apple extension, serialized as X-APPLE-TRAVEL-DURATION;VALUE=DURATION:PT30M.
 const travelDurationProperty = "x-apple-travel-duration";
 const travelPropertyPrefix = "x-apple-travel-";
 
@@ -12,11 +9,7 @@ const durationFromValue = (value: unknown): ICAL.Duration | null => {
     return value;
   }
   if (typeof value === "string" && value !== "") {
-    try {
-      return ICAL.Duration.fromString(value);
-    } catch {
-      return null;
-    }
+    return ICAL.Duration.fromString(value);
   }
   return null;
 };
@@ -26,7 +19,12 @@ export const readTravelMinutes = (event: ICAL.Component): number | null => {
   if (property === null) {
     return null;
   }
-  const duration = durationFromValue(property.getFirstValue());
+  let duration: ICAL.Duration | null;
+  try {
+    duration = durationFromValue(property.getFirstValue());
+  } catch {
+    return null;
+  }
   if (duration === null) {
     return null;
   }
@@ -35,7 +33,7 @@ export const readTravelMinutes = (event: ICAL.Component): number | null => {
     return null;
   }
   const minutes = Math.round(seconds / 60);
-  return minutes > 0 ? minutes : null;
+  return Number.isSafeInteger(minutes) && minutes > 0 ? minutes : null;
 };
 
 export const isAllDayEvent = (event: ICAL.Component): boolean => {
@@ -48,8 +46,7 @@ export const setTravelMinutes = (
   minutes: number | null,
 ): void => {
   if (minutes === null) {
-    // Clearing travel time also drops Apple's automatic travel metadata, so
-    // Calendar does not recalculate and re-add it from a stored start location.
+    // Clear related routing metadata as well as the duration.
     // getAllProperties() returns the live internal array, so iterate a copy.
     for (const property of [...event.getAllProperties()]) {
       if (property.name.startsWith(travelPropertyPrefix)) {
