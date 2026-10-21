@@ -46,26 +46,35 @@ describe.skipIf(!radicaleEnabled)("Radicale gateway contract", () => {
           timezone: "Europe/Berlin",
         },
         alarms: [{ minutes_before: 60 }, { minutes_before: 0 }],
+        travel_minutes: 30,
       }),
     );
 
     try {
       expect(created.etag).not.toBeNull();
       expect(created.alarms).toHaveLength(2);
+      expect(created.travelMinutes).toBe(30);
       const listed = await service.listEvents(
         calendar.calendarId,
         "2026-09-01T00:00:00Z",
         "2026-10-01T00:00:00Z",
       );
       expect(listed.map((event) => event.uid)).toContain(created.uid);
+      expect(
+        listed.find((event) => event.uid === created.uid)?.travelMinutes,
+      ).toBe(30);
 
       const updated = await service.updateEvent({
         resourceId: created.resourceId,
         ...(created.etag === null ? {} : { expectedEtag: created.etag }),
-        patch: eventPatchSchema.parse({ summary: "Updated through tsdav" }),
+        patch: eventPatchSchema.parse({
+          summary: "Updated through tsdav",
+          travel_minutes: 45,
+        }),
       });
       expect(updated.summary).toBe("Updated through tsdav");
       expect(updated.alarms).toHaveLength(2);
+      expect(updated.travelMinutes).toBe(45);
 
       await service.deleteEvent({
         resourceId: updated.resourceId,

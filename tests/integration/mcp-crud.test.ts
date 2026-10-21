@@ -123,11 +123,13 @@ describe("MCP CRUD integration", () => {
                 timezone: "Europe/Berlin",
               },
               alarms: [{ minutes_before: 1440 }, { minutes_before: 0 }],
+              travel_minutes: 30,
             },
           })
         ).structuredContent,
       );
       expect(created.alarms).toHaveLength(2);
+      expect(created.travel_minutes).toBe(30);
       expect(created.etag).toBe("etag-1");
 
       const fetched = eventOutputSchema.parse(
@@ -144,6 +146,10 @@ describe("MCP CRUD integration", () => {
       );
       expect(fetched.raw_ical).toContain("X-WR-ALARMUID:fixed-uuid-2");
       expect(fetched.raw_ical).toContain("X-APPLE-DEFAULT-ALARM:FALSE");
+      expect(fetched.raw_ical).toContain(
+        "X-APPLE-TRAVEL-DURATION;VALUE=DURATION:PT30M",
+      );
+      expect(fetched.travel_minutes).toBe(30);
 
       const updated = eventOutputSchema.parse(
         (
@@ -160,14 +166,46 @@ describe("MCP CRUD integration", () => {
       );
       expect(updated.summary).toBe("Updated");
       expect(updated.alarms).toHaveLength(2);
+      expect(updated.travel_minutes).toBe(30);
       expect(updated.etag).toBe("etag-2");
+
+      const replaced = eventOutputSchema.parse(
+        (
+          await client.callTool({
+            name: "update_event",
+            arguments: {
+              resource_id: updated.resource_id,
+              expected_etag: updated.etag,
+              patch: { travel_minutes: 45 },
+            },
+          })
+        ).structuredContent,
+      );
+      expect(replaced.travel_minutes).toBe(45);
+      expect(replaced.start).toEqual(created.start);
+      expect(replaced.end).toEqual(created.end);
+      expect(replaced.alarms).toEqual(created.alarms);
+
+      const cleared = eventOutputSchema.parse(
+        (
+          await client.callTool({
+            name: "update_event",
+            arguments: {
+              resource_id: replaced.resource_id,
+              expected_etag: replaced.etag,
+              patch: { travel_minutes: null },
+            },
+          })
+        ).structuredContent,
+      );
+      expect(cleared.travel_minutes).toBeNull();
 
       const deleted = await client.callTool({
         name: "delete_event",
         arguments: {
           calendar_id: calendarId,
-          uid: updated.uid,
-          expected_etag: updated.etag,
+          uid: cleared.uid,
+          expected_etag: cleared.etag,
         },
       });
       expect(deleted.structuredContent).toEqual({
@@ -183,7 +221,7 @@ describe("MCP CRUD integration", () => {
     }
   });
 
-  it("lists an iCloud resource with an embedded custom timezone", async () => {
+  it("lists custom-timezone events even when one has malformed travel metadata", async () => {
     const url = `${calendarUrl}custom-timezone.ics`;
     const resource: CalendarResource = {
       calendarId,
@@ -207,10 +245,20 @@ describe("MCP CRUD integration", () => {
         "DTSTART;TZID=GMT+0545:20260110T100000",
         "DTEND;TZID=GMT+0545:20260110T110000",
         "SUMMARY:Custom timezone",
+        "X-APPLE-TRAVEL-DURATION;VALUE=DURATION:PT30M",
         "END:VEVENT",
         "END:VCALENDAR",
         "",
       ].join("\r\n"),
+    };
+    const malformedUrl = `${calendarUrl}malformed-travel.ics`;
+    const malformedResource: CalendarResource = {
+      ...resource,
+      resourceId: createResourceId(calendarUrl, malformedUrl),
+      url: malformedUrl,
+      data: resource.data
+        .replace("UID:custom-timezone", "UID:malformed-travel")
+        .replace("PT30M", "garbage"),
     };
     const unavailable = (): Promise<never> =>
       Promise.reject(new Error("Not available in this test"));
@@ -225,7 +273,7 @@ describe("MCP CRUD integration", () => {
             writable: true,
           },
         ]),
-      listResources: () => Promise.resolve([resource]),
+      listResources: () => Promise.resolve([resource, malformedResource]),
       getResource: () => Promise.resolve(resource),
       createResource: unavailable,
       updateResource: unavailable,
@@ -254,7 +302,19 @@ describe("MCP CRUD integration", () => {
         ).structuredContent,
       );
 
-      expect(result.events).toHaveLength(1);
+      expect(result.events).toHaveLength(2);
+      expect(result.events).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            uid: "custom-timezone",
+            travel_minutes: 30,
+          }),
+          expect.objectContaining({
+            uid: "malformed-travel",
+            travel_minutes: null,
+          }),
+        ]),
+      );
       expect(result.events[0]?.start).toEqual({
         date_time: "2026-01-10T10:00:00+05:45",
         timezone: "GMT+0545",
