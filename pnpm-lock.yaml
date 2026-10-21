@@ -171,9 +171,9 @@ importers:
         version: 2.0.0(@modelcontextprotocol/server@2.3.1)(express@5.2.1)
       '@modelcontextprotocol/node':
         specifier: ^2.0.0
-        version: 2.0.0(@modelcontextprotocol/server@2.3.1)(hono@4.12.32)
+        version: 2.1.1(@modelcontextprotocol/server@2.3.1)
       '@modelcontextprotocol/server':
-        specifier: ^2.0.0
+        specifier: ^2.3.1
         version: 2.3.1
       express:
         specifier: ^5.2.1
@@ -413,15 +413,11 @@ packages:
       '@modelcontextprotocol/server': ^2.0.0
       express: ^4.18.0 || ^5.0.0
 
-  '@modelcontextprotocol/node@2.0.0':
-    resolution: {integrity: sha512-Y4hAC2XdGDUdDOCbLDOCA4+aL3NUldjsOWlDL/YwpAxrPhRm1xHd7lZ+mLacvZ9t3PaH28wgNoaLQGrIk1P2pg==}
+  '@modelcontextprotocol/node@2.1.1':
+    resolution: {integrity: sha512-EY92OAXN2xYL7tNS/MVsWJW1v8VHAPwl9B4Ca3pCrjmvqyC+S1C/6UHsMxF2GoFPraS5Yyg56vFz9brVpFojMA==}
     engines: {node: '>=20'}
     peerDependencies:
-      '@modelcontextprotocol/server': ^2.0.0
-      hono: ^4.11.4
-    peerDependenciesMeta:
-      hono:
-        optional: true
+      '@modelcontextprotocol/server': ^2.3.0
 
   '@modelcontextprotocol/server@2.3.1':
     resolution: {integrity: sha512-e59MfWuSssj6DoQ96JCTqdW1AXT5/XtnTl0WWd6MU1Ka434fFUGGosCLJbGNySDhHGvxQWoRWK137FXYFkYNWw==}
@@ -2146,11 +2142,10 @@ snapshots:
       cors: 2.8.6
       express: 5.2.1
 
-  '@modelcontextprotocol/node@2.0.0(@modelcontextprotocol/server@2.3.1)(hono@4.12.32)':
+  '@modelcontextprotocol/node@2.1.1(@modelcontextprotocol/server@2.3.1)':
     dependencies:
       '@hono/node-server': 1.19.15(hono@4.12.32)
       '@modelcontextprotocol/server': 2.3.1
-    optionalDependencies:
       hono: 4.12.32
 
   '@modelcontextprotocol/server@2.3.1':
