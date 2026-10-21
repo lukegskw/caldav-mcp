@@ -11,3 +11,8 @@ export {
   type PatchCalendarEventOptions,
 } from "./codec.js";
 export { expandCalendarEvent } from "./recurrence.js";
+export {
+  isAllDayEvent,
+  readTravelMinutes,
+  setTravelMinutes,
+} from "./travel.js";
