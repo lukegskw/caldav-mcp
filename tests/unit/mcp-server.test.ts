@@ -29,6 +29,7 @@ const firstEvent: EventResult = {
   location: null,
   rrule: null,
   alarms: [],
+  travelMinutes: null,
   recurring: false,
   recurrenceException: false,
   recurrenceId: null,
