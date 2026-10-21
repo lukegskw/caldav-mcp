@@ -64,6 +64,15 @@ const locationSchema = z
   .max(4_096)
   .nullable()
   .describe("Event location, or null for no location.");
+const travelMinutesSchema = z
+  .number()
+  .int()
+  .min(1)
+  .max(1_440)
+  .nullable()
+  .describe(
+    "Apple Calendar travel time in whole minutes before the start (1 to 1,440), or null for none. Only valid for timed events.",
+  );
 const recurrenceRuleSchema = z
   .string()
   .min(1)
@@ -92,6 +101,11 @@ export const createEventInputSchema = z
     location: locationSchema
       .default(null)
       .describe("Event location; defaults to null."),
+    travel_minutes: travelMinutesSchema
+      .default(null)
+      .describe(
+        "Apple Calendar travel time in whole minutes before the start; defaults to null. Only valid for timed events.",
+      ),
     alarms: alarmsInputSchema
       .default([])
       .describe("Display reminders; defaults to an empty array."),
@@ -104,6 +118,13 @@ export const createEventInputSchema = z
   .strict()
   .superRefine((value, context) => {
     validateTemporalRange(value.start, value.end, context);
+    if (value.travel_minutes !== null && !isTimedTemporalValue(value.start)) {
+      context.addIssue({
+        code: "custom",
+        message: "travel_minutes requires a timed event; use null to clear it",
+        path: ["travel_minutes"],
+      });
+    }
   });
 
 export const eventPatchSchema = z
@@ -123,6 +144,11 @@ export const eventPatchSchema = z
     location: locationSchema
       .optional()
       .describe("Replacement location; use null to clear it."),
+    travel_minutes: travelMinutesSchema
+      .optional()
+      .describe(
+        "Replacement Apple Calendar travel time in whole minutes; omit to preserve it or use null to remove travel time and related routing metadata. A number requires a timed event; converting to all-day requires clearing existing travel time with null.",
+      ),
     alarms: alarmsInputSchema
       .optional()
       .describe(
@@ -146,6 +172,17 @@ export const eventPatchSchema = z
     }
     if (value.start !== undefined && value.end !== undefined) {
       validateTemporalRange(value.start, value.end, context);
+      if (
+        typeof value.travel_minutes === "number" &&
+        !isTimedTemporalValue(value.start)
+      ) {
+        context.addIssue({
+          code: "custom",
+          message:
+            "travel_minutes requires a timed event; use null to clear it",
+          path: ["travel_minutes"],
+        });
+      }
     }
   });
 
@@ -168,6 +205,7 @@ export type NormalizedEvent = {
   readonly location: string | null;
   readonly rrule: string | null;
   readonly alarms: readonly NormalizedAlarm[];
+  readonly travelMinutes: number | null;
   readonly recurring: boolean;
   readonly recurrenceException: boolean;
   readonly recurrenceId: string | null;
