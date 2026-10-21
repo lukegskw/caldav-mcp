@@ -38,6 +38,7 @@ export const serializeEvent = (event: EventResult) => ({
     action: alarm.action,
     description: alarm.description,
   })),
+  travel_minutes: event.travelMinutes,
   recurring: event.recurring,
   recurrence_exception: event.recurrenceException,
   recurrence_id: event.recurrenceId,
