@@ -84,6 +84,7 @@ application database, and raw iCalendar is returned only when explicitly request
 - Lists events in semi-open time ranges and expands recurring occurrences.
 - Creates timed, all-day, and recurring events.
 - Supports zero, one, or multiple display alarms per event.
+- Reads and writes Apple Calendar travel time (`X-APPLE-TRAVEL-DURATION`).
 - Emits the Apple alarm extensions expected by iCloud Calendar.
 - Reads events by opaque resource ID or by calendar ID and UID.
 - Applies partial updates while preserving omitted and unknown iCalendar data.
@@ -183,11 +184,47 @@ Recurring events accept an RFC 5545 rule without the `RRULE:` prefix:
 }
 ```
 
+Timed event with 30 minutes of Apple Calendar travel time:
+
+```json
+{
+  "calendar_id": "opaque-calendar-id",
+  "summary": "Dentist",
+  "start": {
+    "date_time": "2026-10-05T10:00:00+02:00",
+    "timezone": "Europe/Amsterdam"
+  },
+  "end": {
+    "date_time": "2026-10-05T10:30:00+02:00",
+    "timezone": "Europe/Amsterdam"
+  },
+  "travel_minutes": 30
+}
+```
+
+`travel_minutes` sets a fixed travel duration before the event. In this example,
+travel starts at 09:30 and the appointment stays at 10:00–10:30. The server accepts
+whole minutes from 1 to 1,440 for timed events; omit the field or use `null` when
+creating an event without travel time. It does not calculate routes or change
+the event's start, end, or alarms.
+
+The duration is stored in Apple's `X-APPLE-TRAVEL-DURATION` extension. Display in
+other calendar clients depends on their support for that extension. Returned
+events include `travel_minutes`, rounded to the nearest whole minute, or `null`
+when the duration is missing, invalid, or rounds to zero.
+
 ### `update_event`
 
-Patches an event or complete recurring series. Omitted fields are preserved, `null`
-removes a nullable field, and `alarms: []` removes all alarms. An optional
-`expected_etag` prevents overwriting a newer server version.
+Patches an event or the master event of a recurring series. Omitted fields are
+preserved, `null` removes a nullable field, and `alarms: []` removes all alarms. An
+optional `expected_etag` prevents overwriting a newer server version.
+
+For travel time, omit `patch.travel_minutes` to keep the current value, set it to a
+number to replace the duration, or set it to `null` to remove the duration and
+related Apple routing metadata. For example, `"patch": { "travel_minutes": null }`
+clears travel time. When converting an event with travel time to all-day, include
+`travel_minutes: null` alongside the new start and end dates. Existing recurrence
+exceptions retain their own travel settings.
 
 ### `delete_event`
 
